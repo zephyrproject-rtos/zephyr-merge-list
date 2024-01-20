@@ -109,11 +109,11 @@ def main(argv):
         author = data['pr'].user.login
         assignees = ', '.join(a.login for a in data['pr'].assignees)
 
-        approvers_list = []
+        approvers_set = set()
         for review in data['reviews']:
             if review.user and review.state == 'APPROVED':
-                approvers_list.append(review.user.login)
-        approvers = ', '.join(approvers_list)
+                approvers_set.add(review.user.login)
+        approvers = ', '.join(approvers_set)
 
         base = data['pr'].base.ref
 

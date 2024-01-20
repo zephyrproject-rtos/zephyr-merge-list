@@ -22,9 +22,18 @@ def print_rate_limit(gh, org):
             print(f"{header}: {value}")
 
 
-def evaluate_criteria(number, data):
-    print(f"process: {number}")
+def calc_biz_days(ref, delta):
+    days = 0
 
+    for day in range(delta.days):
+        date = ref + datetime.timedelta(day + 1)
+        if date.weekday() < 5:
+            days += 1
+
+    return days
+
+
+def evaluate_criteria(number, data):
     pr = data['pr']
     author = pr.user.login
     labels = [l.name for l in pr.labels]
@@ -53,21 +62,27 @@ def evaluate_criteria(number, data):
             # use the first undraft as reference
             reference_time = event.created_at
             break
-    delta = datetime.datetime.now(utc) - reference_time.astimezone(utc)
-    delta_hours = delta.total_seconds() / 3600
+    now = datetime.datetime.now(utc)
 
-    # TODO: business time compensation
+    delta = now - reference_time.astimezone(utc)
+    delta_hours = delta.total_seconds() / 3600
+    delta_biz_days = calc_biz_days(reference_time.astimezone(utc), delta)
+
+    hotfix = "Hotfix" in labels
+    trivial = "Trivial" in labels
 
     enough_time = False
-    if "Hotfix" in labels:
+    if hotfix:
         enough_time = True
-    elif "Trivial" in labels and delta_hours > 4:
+    elif trivial and delta_hours > 4:
         enough_time = True
-    elif delta_hours > 48:
+    elif delta_biz_days > 2:
         enough_time = True
 
     data['assignee'] = assignee_approved
     data['time'] = enough_time
+
+    print(f"process {number}: {author} {assignees} {approvers} {delta_hours} {delta_biz_days} {hotfix} {trivial}")
 
 
 def parse_args(argv):

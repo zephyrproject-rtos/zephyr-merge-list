@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<style>
+body {
+	font-family: Roboto;
+	font-size: 14px
+}
+
+a {
+	text-decoration: none;
+	color: #000000;
+}
+
+a:hover {
+	text-decoration: underline;
+	color: #000000;
+}
+
+span.approved {
+	color: #269926
+}
+
+span.blocked {
+	color: #992626
+}
+
+span.none {
+	color: #999999
+}
+
+a.approved {
+	color: #269926
+}
+
+a.blocked {
+	color: #992626
+}
+
+.prs {
+	border-collapse: collapse;
+	width: 100%;
+}
+
+.prs td, .prs th {
+	border: 1px solid #ddd;
+	padding: 4px;
+}
+
+.prs tr:nth-child(even){background-color: #f2f2f2;}
+
+.prs tr:hover {background-color: #ddd;}
+
+.prs th {
+	padding-top: 4px;
+	padding-bottom: 4px;
+	text-align: left;
+	background-color: #333f67;
+	color: white;
+}
+</style>
+
+</head>
+
+<body>
+
+<h1>Merge queue</h1>
+
+<table class="prs" id="author">
+  <tr>
+    <th>#</th><th>Title</th><th>Author</th><th>Assignee</th><th>Reviewers</th>
+    <th>Base</th>
+    <th>&check;</th>
+    <th>&#9202;</th>
+  </tr>

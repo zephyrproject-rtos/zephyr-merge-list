@@ -81,6 +81,8 @@ def evaluate_criteria(number, data):
 
     data['assignee'] = assignee_approved
     data['time'] = enough_time
+    data['hotfix'] = hotfix
+    data['trivial'] = trivial
 
     print(f"process {number}: {author} {assignees} {approvers} {delta_hours} {delta_biz_days} {hotfix} {trivial}")
 
@@ -150,6 +152,12 @@ def main(argv):
         else:
             tr_class = "draft"
 
+        tags = ""
+        if data['hotfix']:
+            tags += "&#128293;"
+        if data['trivial']:
+            tags += "&#128168;"
+
         html_out += f"""
             <tr class="{tr_class}">
             <td><a href="{url}">{number}</a></td>
@@ -160,6 +168,7 @@ def main(argv):
             <td>{base}</td>
             <td>{assignee}</td>
             <td>{time}</td>
+            <td>{tags}</td>
           </tr>
           """
 

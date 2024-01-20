@@ -45,7 +45,8 @@ def evaluate_criteria(number, data):
         if approver in assignees:
             assignee_approved = True
 
-    delta = datetime.datetime.now() - pr.created_at
+    utc = datetime.timezone.utc
+    delta = datetime.datetime.now(utc) - pr.created_at.astimezone(utc)
     delta_hours = delta.total_seconds() / 3600
 
     # TODO: business time compensation

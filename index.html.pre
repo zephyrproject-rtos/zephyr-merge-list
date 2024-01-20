@@ -74,7 +74,7 @@ a.blocked {
 
 <table class="prs" id="author">
   <tr>
-    <th>#</th><th>Title</th><th>Author</th><th>Assignee</th><th>Reviewers</th>
+    <th>#</th><th>Title</th><th>Author</th><th>Assignee</th><th>Approvers</th>
     <th>Base</th>
     <th>&check;</th>
     <th>&#9202;</th>

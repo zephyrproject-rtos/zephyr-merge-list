@@ -59,6 +59,11 @@ a.blocked {
 	background-color: #333f67;
 	color: white;
 }
+
+.prs tr.draft {
+        font-style: italic;
+        opacity: 0.5;
+}
 </style>
 
 </head>

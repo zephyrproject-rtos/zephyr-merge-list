@@ -123,8 +123,13 @@ def main(argv):
         assignee = PASS if data['assignee'] else FAIL
         time = PASS if data['time'] else FAIL
 
+        if data['assignee'] and data['time']:
+            tr_class = ""
+        else:
+            tr_class = "draft"
+
         html_out += f"""
-            <tr>
+            <tr class="{tr_class}">
             <td><a href="{url}">{number}</a></td>
             <td><a href="{url}">{title}</a></td>
             <td>{author}</td>

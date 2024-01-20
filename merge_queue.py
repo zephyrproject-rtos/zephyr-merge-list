@@ -38,7 +38,7 @@ def evaluate_criteria(number, data):
 
     assignee_approved = False
 
-    if author in approvers:
+    if author in assignees:
         assignee_approved = True
 
     for approver in approvers:

@@ -46,7 +46,14 @@ def evaluate_criteria(number, data):
             assignee_approved = True
 
     utc = datetime.timezone.utc
-    delta = datetime.datetime.now(utc) - pr.created_at.astimezone(utc)
+
+    reference_time = pr.created_at
+    for event in data['events']:
+        if event.event == 'ready_for_review':
+            # use the first undraft as reference
+            reference_time = event.created_at
+            break
+    delta = datetime.datetime.now(utc) - reference_time.astimezone(utc)
     delta_hours = delta.total_seconds() / 3600
 
     # TODO: business time compensation

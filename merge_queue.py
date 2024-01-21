@@ -87,6 +87,52 @@ def evaluate_criteria(number, data):
     print(f"process {number}: {author} {assignees} {approvers} {delta_hours} {delta_biz_days} {hotfix} {trivial}")
 
 
+def table_entry(number, data):
+    url = data['pr'].html_url
+    title = data['pr'].title
+    author = data['pr'].user.login
+    assignees = ', '.join(a.login for a in data['pr'].assignees)
+
+    approvers_set = set()
+    for review in data['reviews']:
+        if review.user and review.state == 'APPROVED':
+            approvers_set.add(review.user.login)
+    approvers = ', '.join(approvers_set)
+
+    base = data['pr'].base.ref
+
+    PASS = "<span class=appproved>&check;</span>"
+    FAIL = "<span class=blocked>&#10005;</span>"
+
+    assignee = PASS if data['assignee'] else FAIL
+    time = PASS if data['time'] else FAIL
+
+    if data['assignee'] and data['time']:
+        tr_class = ""
+    else:
+        tr_class = "draft"
+
+    tags = ""
+    if data['hotfix']:
+        tags += "&#128293;"
+    if data['trivial']:
+        tags += "&#128168;"
+
+    return f"""
+        <tr class="{tr_class}">
+            <td><a href="{url}">{number}</a></td>
+            <td><a href="{url}">{title}</a></td>
+            <td>{author}</td>
+            <td>{assignees}</td>
+            <td>{approvers}</td>
+            <td>{base}</td>
+            <td>{assignee}</td>
+            <td>{time}</td>
+            <td>{tags}</td>
+        </tr>
+        """
+
+
 def parse_args(argv):
     parser = argparse.ArgumentParser(description=__doc__)
 
@@ -130,49 +176,7 @@ def main(argv):
         html_out = html_out.replace("UPDATE_TIMESTAMP", timestamp)
 
     for number, data in pr_data.items():
-        url = data['pr'].html_url
-        title = data['pr'].title
-        author = data['pr'].user.login
-        assignees = ', '.join(a.login for a in data['pr'].assignees)
-
-        approvers_set = set()
-        for review in data['reviews']:
-            if review.user and review.state == 'APPROVED':
-                approvers_set.add(review.user.login)
-        approvers = ', '.join(approvers_set)
-
-        base = data['pr'].base.ref
-
-        PASS = "<span class=appproved>&check;</span>"
-        FAIL = "<span class=blocked>&#10005;</span>"
-
-        assignee = PASS if data['assignee'] else FAIL
-        time = PASS if data['time'] else FAIL
-
-        if data['assignee'] and data['time']:
-            tr_class = ""
-        else:
-            tr_class = "draft"
-
-        tags = ""
-        if data['hotfix']:
-            tags += "&#128293;"
-        if data['trivial']:
-            tags += "&#128168;"
-
-        html_out += f"""
-            <tr class="{tr_class}">
-            <td><a href="{url}">{number}</a></td>
-            <td><a href="{url}">{title}</a></td>
-            <td>{author}</td>
-            <td>{assignees}</td>
-            <td>{approvers}</td>
-            <td>{base}</td>
-            <td>{assignee}</td>
-            <td>{time}</td>
-            <td>{tags}</td>
-          </tr>
-          """
+        html_out += table_entry(number, data)
 
     with open(HTML_POST) as f:
         html_out += f.read()

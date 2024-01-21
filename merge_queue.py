@@ -126,6 +126,8 @@ def main(argv):
 
     with open(HTML_PRE) as f:
         html_out = f.read()
+        timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%d/%m/%Y %H:%M:%S %Z")
+        html_out = html_out.replace("UPDATE_TIMESTAMP", timestamp)
 
     for number, data in pr_data.items():
         url = data['pr'].html_url

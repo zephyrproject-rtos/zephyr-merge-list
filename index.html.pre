@@ -72,6 +72,8 @@ a.blocked {
 
 <h1>Merge queue</h1>
 
+<h3>Last update: UPDATE_TIMESTAMP</h3>
+
 <table class="prs" id="author">
   <tr>
     <th>#</th><th>Title</th><th>Author</th><th>Assignee</th><th>Approvers</th>

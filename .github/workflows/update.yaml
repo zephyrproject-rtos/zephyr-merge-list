@@ -15,8 +15,8 @@ defaults:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-
       - name: Install Python dependencies
         run: pip3 install -U PyGithub
 
@@ -44,6 +44,7 @@ jobs:
       pages: write
       id-token: write
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4

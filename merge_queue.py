@@ -112,11 +112,12 @@ def table_entry(number, data):
     else:
         tr_class = "draft"
 
-    tags = ""
+    tags = []
     if data['hotfix']:
-        tags += "&#128293;"
+        tags.append("H")
     if data['trivial']:
-        tags += "&#128168;"
+        tags.append("T")
+    tags_text = ' '.join(tags)
 
     return f"""
         <tr class="{tr_class}">
@@ -128,7 +129,7 @@ def table_entry(number, data):
             <td>{base}</td>
             <td>{assignee}</td>
             <td>{time}</td>
-            <td>{tags}</td>
+            <td>{tags_text}</td>
         </tr>
         """
 

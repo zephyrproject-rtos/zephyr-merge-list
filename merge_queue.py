@@ -22,15 +22,15 @@ def print_rate_limit(gh, org):
             print(f"{header}: {value}")
 
 
-def calc_biz_days(ref, delta):
-    days = 0
+def calc_biz_hours(ref, delta):
+    biz_hours = 0
 
-    for day in range(delta.days):
-        date = ref + datetime.timedelta(day + 1)
+    for hours in range(int(delta.total_seconds() / 3600)):
+        date = ref + datetime.timedelta(hours=hours+1)
         if date.weekday() < 5:
-            days += 1
+            biz_hours += 1
 
-    return days
+    return biz_hours
 
 
 def evaluate_criteria(number, data):
@@ -66,7 +66,7 @@ def evaluate_criteria(number, data):
 
     delta = now - reference_time.astimezone(utc)
     delta_hours = delta.total_seconds() / 3600
-    delta_biz_days = calc_biz_days(reference_time.astimezone(utc), delta)
+    delta_biz_hours = calc_biz_hours(reference_time.astimezone(utc), delta)
 
     hotfix = "Hotfix" in labels
     trivial = "Trivial" in labels
@@ -76,7 +76,7 @@ def evaluate_criteria(number, data):
         enough_time = True
     elif trivial and delta_hours > 4:
         enough_time = True
-    elif delta_biz_days > 2:
+    elif delta_biz_hours > 48:
         enough_time = True
 
     data['assignee'] = assignee_approved
@@ -84,7 +84,7 @@ def evaluate_criteria(number, data):
     data['hotfix'] = hotfix
     data['trivial'] = trivial
 
-    print(f"process {number}: {author} {assignees} {approvers} {delta_hours} {delta_biz_days} {hotfix} {trivial}")
+    print(f"process {number}: {author} {assignees} {approvers} {delta_hours} {delta_biz_hours} {hotfix} {trivial}")
 
 
 def table_entry(number, data):

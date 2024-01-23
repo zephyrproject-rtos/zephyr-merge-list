@@ -66,7 +66,7 @@ def evaluate_criteria(number, data):
     now = datetime.datetime.now(UTC)
 
     delta = now - reference_time.astimezone(UTC)
-    delta_hours = delta.total_seconds() / 3600
+    delta_hours = int(delta.total_seconds() / 3600)
     delta_biz_hours = calc_biz_hours(reference_time.astimezone(UTC), delta)
 
     if hotfix:

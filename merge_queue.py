@@ -59,9 +59,7 @@ def evaluate_criteria(number, data):
     reference_time = pr.created_at
     for event in data['events']:
         if event.event == 'ready_for_review':
-            # use the first undraft as reference
             reference_time = event.created_at
-            break
     now = datetime.datetime.now(utc)
 
     delta = now - reference_time.astimezone(utc)

@@ -68,7 +68,28 @@ a.blocked {
 
 </head>
 
-<body>
+<script type="text/javascript">
+	function load() {
+		var checkbox = document.getElementById('autoRefreshCheckbox');
+		var value = localStorage.getItem('autoRefresh');
+		if (value == "true") {
+			checkbox.checked = true;
+		}
+	}
+
+	function refreshSave() {
+		var checkbox = document.getElementById('autoRefreshCheckbox');
+		localStorage.setItem('autoRefresh', checkbox.checked);
+	}
+
+	setInterval(function () {
+		if (document.getElementById('autoRefreshCheckbox').checked) {
+			location.reload();
+		}
+	}, 60000);
+</script>
+
+<body onload="load()">
 
 <h1>Merge queue</h1>
 

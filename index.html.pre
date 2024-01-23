@@ -66,8 +66,6 @@ a.blocked {
 }
 </style>
 
-</head>
-
 <script type="text/javascript">
 	function load() {
 		var checkbox = document.getElementById('autoRefreshCheckbox');
@@ -88,6 +86,8 @@ a.blocked {
 		}
 	}, 60000);
 </script>
+
+</head>
 
 <body onload="load()">
 

@@ -1,6 +1,6 @@
 </table>
 
-<p><input type="checkbox" id="autoRefreshCheckbox" onclick="refreshSave()"/><span>Auto Refresh</span></p>
+<p><input type="checkbox" id="autoRefreshCheckbox" onclick="refreshSave()"/><span>Refresh automatically</span></p>
 
 <p>
 <a href='https://github.com/fabiobaltieri/zephyr-merge-queue/actions/workflows/update.yaml'>

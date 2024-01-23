@@ -69,20 +69,21 @@ def evaluate_criteria(number, data):
     hotfix = "Hotfix" in labels
     trivial = "Trivial" in labels
 
-    enough_time = False
     if hotfix:
-        enough_time = True
-    elif trivial and delta_hours > 4:
-        enough_time = True
-    elif delta_biz_hours > 48:
-        enough_time = True
+        time_left = 0
+    elif trivial:
+        time_left = 4 - delta_hours
+    else:
+        time_left = 48 - delta_biz_hours
+
 
     data['assignee'] = assignee_approved
-    data['time'] = enough_time
+    data['time'] = time_left <= 0
+    data['time_left'] = time_left
     data['hotfix'] = hotfix
     data['trivial'] = trivial
 
-    print(f"process {number}: {author} {assignees} {approvers} {delta_hours} {delta_biz_hours} {hotfix} {trivial}")
+    print(f"process {number}: {author} {assignees} {approvers} {delta_hours} {delta_biz_hours} {time_left} {hotfix} {trivial}")
 
 
 def table_entry(number, data):
@@ -103,7 +104,7 @@ def table_entry(number, data):
     FAIL = "<span class=blocked>&#10005;</span>"
 
     assignee = PASS if data['assignee'] else FAIL
-    time = PASS if data['time'] else FAIL
+    time = PASS if data['time'] else FAIL + f" ({data['time_left']}h left)"
 
     if data['assignee'] and data['time']:
         tr_class = ""

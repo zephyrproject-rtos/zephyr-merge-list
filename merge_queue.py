@@ -38,6 +38,8 @@ def evaluate_criteria(number, data):
     author = pr.user.login
     labels = [l.name for l in pr.labels]
     assignees = [a.login for a in pr.assignees]
+    hotfix = "Hotfix" in labels
+    trivial = "Trivial" in labels
 
     reviews = data['reviews']
     approvers = set()
@@ -47,7 +49,9 @@ def evaluate_criteria(number, data):
 
     assignee_approved = False
 
-    if not assignees or author in assignees:
+    if (hotfix or
+        not assignees or
+        author in assignees):
         assignee_approved = True
 
     for approver in approvers:
@@ -65,9 +69,6 @@ def evaluate_criteria(number, data):
     delta = now - reference_time.astimezone(utc)
     delta_hours = delta.total_seconds() / 3600
     delta_biz_hours = calc_biz_hours(reference_time.astimezone(utc), delta)
-
-    hotfix = "Hotfix" in labels
-    trivial = "Trivial" in labels
 
     if hotfix:
         time_left = 0

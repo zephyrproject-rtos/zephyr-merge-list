@@ -41,9 +41,8 @@ def evaluate_criteria(number, data):
     hotfix = "Hotfix" in labels
     trivial = "Trivial" in labels
 
-    reviews = data['reviews']
     approvers = set()
-    for review in reviews:
+    for review in data['reviews']:
         if review.user and review.state == 'APPROVED':
             approvers.add(review.user.login)
 

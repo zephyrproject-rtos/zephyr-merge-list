@@ -15,6 +15,8 @@ HTML_OUT = "public/index.html"
 HTML_PRE = "index.html.pre"
 HTML_POST = "index.html.post"
 
+UTC = datetime.timezone.utc
+
 def print_rate_limit(gh, org):
     response = gh.get_organization(org)
     for header, value in response.raw_headers.items():
@@ -57,17 +59,15 @@ def evaluate_criteria(number, data):
         if approver in assignees:
             assignee_approved = True
 
-    utc = datetime.timezone.utc
-
     reference_time = pr.created_at
     for event in data['events']:
         if event.event == 'ready_for_review':
             reference_time = event.created_at
-    now = datetime.datetime.now(utc)
+    now = datetime.datetime.now(UTC)
 
-    delta = now - reference_time.astimezone(utc)
+    delta = now - reference_time.astimezone(UTC)
     delta_hours = delta.total_seconds() / 3600
-    delta_biz_hours = calc_biz_hours(reference_time.astimezone(utc), delta)
+    delta_biz_hours = calc_biz_hours(reference_time.astimezone(UTC), delta)
 
     if hotfix:
         time_left = 0
@@ -172,7 +172,7 @@ def main(argv):
 
     with open(HTML_PRE) as f:
         html_out = f.read()
-        timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%d/%m/%Y %H:%M:%S %Z")
+        timestamp = datetime.datetime.now(UTC).strftime("%d/%m/%Y %H:%M:%S %Z")
         html_out = html_out.replace("UPDATE_TIMESTAMP", timestamp)
 
     for number, data in pr_data.items():

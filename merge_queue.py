@@ -90,13 +90,13 @@ def table_entry(number, data):
     url = data['pr'].html_url
     title = data['pr'].title
     author = data['pr'].user.login
-    assignees = ', '.join(a.login for a in data['pr'].assignees)
+    assignees = ', '.join(sorted(a.login for a in data['pr'].assignees))
 
     approvers_set = set()
     for review in data['reviews']:
         if review.user and review.state == 'APPROVED':
             approvers_set.add(review.user.login)
-    approvers = ', '.join(approvers_set)
+    approvers = ', '.join(sorted(approvers_set))
 
     base = data['pr'].base.ref
 

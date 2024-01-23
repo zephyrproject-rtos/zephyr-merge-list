@@ -61,8 +61,8 @@ a.blocked {
 }
 
 .prs tr.draft {
-        font-style: italic;
-        opacity: 0.5;
+	font-style: italic;
+	opacity: 0.5;
 }
 </style>
 

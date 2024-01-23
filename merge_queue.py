@@ -104,7 +104,7 @@ def table_entry(number, data):
     FAIL = "<span class=blocked>&#10005;</span>"
 
     assignee = PASS if data['assignee'] else FAIL
-    time = PASS if data['time'] else FAIL + f" ({data['time_left']}h left)"
+    time = PASS if data['time'] else FAIL + f" {data['time_left']}h left"
 
     if data['assignee'] and data['time']:
         tr_class = ""

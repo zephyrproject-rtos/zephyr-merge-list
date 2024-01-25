@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
+from github import Github, GithubException
 import argparse
 import datetime
 import json
 import os
 import sys
-from github import Github, GithubException
+import tabulate
 
 token = os.environ["GITHUB_TOKEN"]
 
@@ -36,6 +37,8 @@ def calc_biz_hours(ref, delta):
 
 
 def evaluate_criteria(number, data):
+    print(f"process: {number}")
+
     pr = data['pr']
     author = pr.user.login
     labels = [l.name for l in pr.labels]
@@ -83,7 +86,8 @@ def evaluate_criteria(number, data):
     data['hotfix'] = hotfix
     data['trivial'] = trivial
 
-    print(f"process {number}: {author} {assignees} {approvers} {delta_hours} {delta_biz_hours} {time_left} {hotfix} {trivial}")
+    data['debug'] = [number, author, assignees, approvers, delta_hours, delta_biz_hours,
+                     time_left, hotfix, trivial]
 
 
 def table_entry(number, data):
@@ -158,7 +162,7 @@ def main(argv):
     pr_issues = gh.search_issues(query=query)
     for issue in pr_issues:
         number = issue.number
-        print(f"fetching: {number}")
+        print(f"fetch: {number}")
         pr = issue.as_pull_request()
         pr_data[number] = {
                 'issue': issue,
@@ -174,6 +178,14 @@ def main(argv):
         html_out = f.read()
         timestamp = datetime.datetime.now(UTC).strftime("%d/%m/%Y %H:%M:%S %Z")
         html_out = html_out.replace("UPDATE_TIMESTAMP", timestamp)
+
+    debug_headers = ["number", "author", "assignees", "approvers",
+                     "delta_hours", "delta_biz_hours", "time_left", "Hotfix",
+                     "Trivial"]
+    debug_data = []
+    for _, data in pr_data.items():
+        debug_data.append(data['debug'])
+    print(tabulate.tabulate(debug_data, headers=debug_headers))
 
     for number, data in pr_data.items():
         html_out += table_entry(number, data)

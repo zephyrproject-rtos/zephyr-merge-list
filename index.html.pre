@@ -7,23 +7,49 @@ body {
 	font-family: Roboto;
 	font-size: 14px
 }
+@media (prefers-color-scheme: dark) {
+	body {
+		background-color: #0d1111;
+		color: #e0e0e0;
+	}
+}
 
 a {
 	text-decoration: none;
 	color: #000000;
+}
+@media (prefers-color-scheme: dark) {
+	a {
+		color: #eeeeee;
+	}
 }
 
 a:hover {
 	text-decoration: underline;
 	color: #000000;
 }
+@media (prefers-color-scheme: dark) {
+	a:hover {
+		color: #eeeeee;
+	}
+}
 
 span.approved {
 	color: #269926
 }
+@media (prefers-color-scheme: dark) {
+	span.approved {
+		color: #40ff40
+	}
+}
 
 span.blocked {
 	color: #992626
+}
+@media (prefers-color-scheme: dark) {
+	span.blocked {
+		color: #ff4040;
+	}
 }
 
 span.none {
@@ -48,9 +74,23 @@ a.blocked {
 	padding: 4px;
 }
 
-.prs tr:nth-child(even){background-color: #f2f2f2;}
+.prs tr:nth-child(even){
+	background-color: #f2f2f2;
+}
+@media (prefers-color-scheme: dark) {
+	.prs tr:nth-child(even){
+		background-color: #303030;
+	}
+}
 
-.prs tr:hover {background-color: #ddd;}
+.prs tr:hover {
+	background-color: #eeeeee;
+}
+@media (prefers-color-scheme: dark) {
+	.prs tr:hover {
+		background-color: #555555;
+	}
+}
 
 .prs th {
 	padding-top: 4px;

@@ -104,7 +104,7 @@ def table_entry(number, data):
 
     base = data['pr'].base.ref
 
-    PASS = "<span class=appproved>&check;</span>"
+    PASS = "<span class=approved>&check;</span>"
     FAIL = "<span class=blocked>&#10005;</span>"
 
     assignee = PASS if data['assignee'] else FAIL

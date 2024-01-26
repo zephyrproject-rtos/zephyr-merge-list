@@ -139,8 +139,8 @@ a.blocked {
   <tr>
     <th>#</th><th>Title</th><th>Author</th><th>Assignee</th><th>Approvers</th>
     <th>Base</th>
-    <th>&#8624;</th>
-    <th>&check;</th>
-    <th>&#9202;</th>
-    <th>&#127991;</th>
+    <th title="Mergeable">&#8624;</th>
+    <th title="Approved">&check;</th>
+    <th title="Review time">&#9202;</th>
+    <th title="Tags">&#127991;</th>
   </tr>

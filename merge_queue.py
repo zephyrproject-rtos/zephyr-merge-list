@@ -43,6 +43,7 @@ def evaluate_criteria(number, data):
     author = pr.user.login
     labels = [l.name for l in pr.labels]
     assignees = [a.login for a in pr.assignees]
+    mergeable = pr.mergeable
     hotfix = "Hotfix" in labels
     trivial = "Trivial" in labels
 
@@ -83,11 +84,12 @@ def evaluate_criteria(number, data):
     data['assignee'] = assignee_approved
     data['time'] = time_left <= 0
     data['time_left'] = time_left
+    data['mergeable'] = mergeable
     data['hotfix'] = hotfix
     data['trivial'] = trivial
 
     data['debug'] = [number, author, assignees, approvers, delta_hours, delta_biz_hours,
-                     time_left, hotfix, trivial]
+                     time_left, mergeable, hotfix, trivial]
 
 
 def table_entry(number, data):
@@ -107,10 +109,11 @@ def table_entry(number, data):
     PASS = "<span class=approved>&check;</span>"
     FAIL = "<span class=blocked>&#10005;</span>"
 
+    mergeable = PASS if data['mergeable'] else FAIL
     assignee = PASS if data['assignee'] else FAIL
     time = PASS if data['time'] else FAIL + f" {data['time_left']}h left"
 
-    if data['assignee'] and data['time']:
+    if data['mergeable'] and data['assignee'] and data['time']:
         tr_class = ""
     else:
         tr_class = "draft"
@@ -130,6 +133,7 @@ def table_entry(number, data):
             <td>{assignees}</td>
             <td>{approvers}</td>
             <td>{base}</td>
+            <td>{mergeable}</td>
             <td>{assignee}</td>
             <td>{time}</td>
             <td>{tags_text}</td>
@@ -180,8 +184,8 @@ def main(argv):
         html_out = html_out.replace("UPDATE_TIMESTAMP", timestamp)
 
     debug_headers = ["number", "author", "assignees", "approvers",
-                     "delta_hours", "delta_biz_hours", "time_left", "Hotfix",
-                     "Trivial"]
+                     "delta_hours", "delta_biz_hours", "time_left", "Mergeable",
+                     "Hotfix", "Trivial"]
     debug_data = []
     for _, data in pr_data.items():
         debug_data.append(data['debug'])

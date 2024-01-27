@@ -93,10 +93,11 @@ def evaluate_criteria(number, data):
 
 
 def table_entry(number, data):
-    url = data['pr'].html_url
-    title = data['pr'].title
-    author = data['pr'].user.login
-    assignees = ', '.join(sorted(a.login for a in data['pr'].assignees))
+    pr = data['pr']
+    url = pr.html_url
+    title = pr.title
+    author = pr.user.login
+    assignees = ', '.join(sorted(a.login for a in pr.assignees))
 
     approvers_set = set()
     for review in data['reviews']:
@@ -104,7 +105,11 @@ def table_entry(number, data):
             approvers_set.add(review.user.login)
     approvers = ', '.join(sorted(approvers_set))
 
-    base = data['pr'].base.ref
+    base = pr.base.ref
+    if pr.milestone:
+        milestone = pr.milestone.title
+    else:
+        milestone = ""
 
     PASS = "<span class=approved>&check;</span>"
     FAIL = "<span class=blocked>&#10005;</span>"
@@ -133,6 +138,7 @@ def table_entry(number, data):
             <td>{assignees}</td>
             <td>{approvers}</td>
             <td>{base}</td>
+            <td>{milestone}</td>
             <td>{mergeable}</td>
             <td>{assignee}</td>
             <td>{time}</td>

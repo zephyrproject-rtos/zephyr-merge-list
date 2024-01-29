@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
-from github import Github, GithubException
+from dataclasses import dataclass, field
 import argparse
 import datetime
+import github
 import os
 import sys
 import tabulate
@@ -19,6 +20,18 @@ PASS = "<span class=approved>&check;</span>"
 FAIL = "<span class=blocked>&#10005;</span>"
 
 UTC = datetime.timezone.utc
+
+@dataclass
+class PRData:
+    issue: github.Issue
+    pr: github.PullRequest
+    assignee: str = field(default=None)
+    time: bool = field(default=False)
+    time_left: int = field(default=None)
+    mergeable: bool = field(default=False)
+    hotfix: bool = field(default=False)
+    trivial: bool = field(default=False)
+    debug: list = field(default=None)
 
 def print_rate_limit(gh, org):
     response = gh.get_organization(org)
@@ -41,7 +54,7 @@ def calc_biz_hours(ref, delta):
 def evaluate_criteria(number, data):
     print(f"process: {number}")
 
-    pr = data['pr']
+    pr = data.pr
     author = pr.user.login
     labels = [l.name for l in pr.labels]
     assignees = [a.login for a in pr.assignees]
@@ -50,7 +63,7 @@ def evaluate_criteria(number, data):
     trivial = "Trivial" in labels
 
     approvers = set()
-    for review in data['reviews']:
+    for review in data.pr.get_reviews():
         if review.user and review.state == 'APPROVED':
             approvers.add(review.user.login)
 
@@ -66,7 +79,7 @@ def evaluate_criteria(number, data):
             assignee_approved = True
 
     reference_time = pr.created_at
-    for event in data['events']:
+    for event in data.pr.get_issue_events():
         if event.event == 'ready_for_review':
             reference_time = event.created_at
     now = datetime.datetime.now(UTC)
@@ -82,26 +95,26 @@ def evaluate_criteria(number, data):
     else:
         time_left = 48 - delta_biz_hours
 
-    data['assignee'] = assignee_approved
-    data['time'] = time_left <= 0
-    data['time_left'] = time_left
-    data['mergeable'] = mergeable
-    data['hotfix'] = hotfix
-    data['trivial'] = trivial
+    data.assignee = assignee_approved
+    data.time = time_left <= 0
+    data.time_left = time_left
+    data.mergeable = mergeable
+    data.hotfix = hotfix
+    data.trivial = trivial
 
-    data['debug'] = [number, author, assignees, approvers, delta_hours, delta_biz_hours,
-                     time_left, mergeable, hotfix, trivial]
+    data.debug = [number, author, assignees, approvers, delta_hours,
+                  delta_biz_hours, time_left, mergeable, hotfix, trivial]
 
 
 def table_entry(number, data):
-    pr = data['pr']
+    pr = data.pr
     url = pr.html_url
     title = pr.title
     author = pr.user.login
     assignees = ', '.join(sorted(a.login for a in pr.assignees))
 
     approvers_set = set()
-    for review in data['reviews']:
+    for review in data.pr.get_reviews():
         if review.user and review.state == 'APPROVED':
             approvers_set.add(review.user.login)
     approvers = ', '.join(sorted(approvers_set))
@@ -112,19 +125,19 @@ def table_entry(number, data):
     else:
         milestone = ""
 
-    mergeable = PASS if data['mergeable'] else FAIL
-    assignee = PASS if data['assignee'] else FAIL
-    time = PASS if data['time'] else FAIL + f" {data['time_left']}h left"
+    mergeable = PASS if data.mergeable else FAIL
+    assignee = PASS if data.assignee else FAIL
+    time = PASS if data.time else FAIL + f" {data.time_left}h left"
 
-    if data['mergeable'] and data['assignee'] and data['time']:
+    if data.mergeable and data.assignee and data.time:
         tr_class = ""
     else:
         tr_class = "draft"
 
     tags = []
-    if data['hotfix']:
+    if data.hotfix:
         tags.append("H")
-    if data['trivial']:
+    if data.trivial:
         tags.append("T")
     tags_text = ' '.join(tags)
 
@@ -160,11 +173,11 @@ def main(argv):
     args = parse_args(argv)
 
     token = os.environ.get('GITHUB_TOKEN', None)
-    gh = Github(token, per_page=PER_PAGE)
+    gh = github.Github(token, per_page=PER_PAGE)
 
     print_rate_limit(gh, args.org)
 
-    pr_data ={}
+    pr_data = {}
 
     query = f"is:pr is:open repo:{args.org}/{args.repo} review:approved status:success -label:DNM draft:false"
     pr_issues = gh.search_issues(query=query)
@@ -172,12 +185,7 @@ def main(argv):
         number = issue.number
         print(f"fetch: {number}")
         pr = issue.as_pull_request()
-        pr_data[number] = {
-                'issue': issue,
-                'pr': pr,
-                'reviews': pr.get_reviews(),
-                'events': pr.get_issue_events(),
-                }
+        pr_data[number] = PRData(issue=issue, pr=pr)
 
     for number, data in pr_data.items():
         evaluate_criteria(number, data)
@@ -192,7 +200,7 @@ def main(argv):
                      "Hotfix", "Trivial"]
     debug_data = []
     for _, data in pr_data.items():
-        debug_data.append(data['debug'])
+        debug_data.append(data.debug)
     print(tabulate.tabulate(debug_data, headers=debug_headers))
 
     for number, data in pr_data.items():

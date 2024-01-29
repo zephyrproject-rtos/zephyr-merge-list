@@ -3,7 +3,6 @@
 from github import Github, GithubException
 import argparse
 import datetime
-import json
 import os
 import sys
 import tabulate
@@ -15,6 +14,9 @@ PER_PAGE = 100
 HTML_OUT = "public/index.html"
 HTML_PRE = "index.html.pre"
 HTML_POST = "index.html.post"
+
+PASS = "<span class=approved>&check;</span>"
+FAIL = "<span class=blocked>&#10005;</span>"
 
 UTC = datetime.timezone.utc
 
@@ -80,7 +82,6 @@ def evaluate_criteria(number, data):
     else:
         time_left = 48 - delta_biz_hours
 
-
     data['assignee'] = assignee_approved
     data['time'] = time_left <= 0
     data['time_left'] = time_left
@@ -110,9 +111,6 @@ def table_entry(number, data):
         milestone = pr.milestone.title
     else:
         milestone = ""
-
-    PASS = "<span class=approved>&check;</span>"
-    FAIL = "<span class=blocked>&#10005;</span>"
 
     mergeable = PASS if data['mergeable'] else FAIL
     assignee = PASS if data['assignee'] else FAIL

@@ -21,6 +21,7 @@ FAIL = "<span class=blocked>&#10005;</span>"
 
 UTC = datetime.timezone.utc
 
+
 @dataclass
 class PRData:
     issue: github.Issue
@@ -32,6 +33,7 @@ class PRData:
     hotfix: bool = field(default=False)
     trivial: bool = field(default=False)
     debug: list = field(default=None)
+
 
 def print_rate_limit(gh, org):
     response = gh.get_organization(org)

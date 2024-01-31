@@ -167,6 +167,8 @@ def parse_args(argv):
                         help="Github organisation")
     parser.add_argument("-r", "--repo", default="zephyr",
                         help="Github repository")
+    parser.add_argument("-i", "--ignore-milestones", default="future,v3.7.0",
+                        help="Comma separated list of milestones to ignore")
 
     return parser.parse_args(argv)
 
@@ -181,9 +183,19 @@ def main(argv):
 
     pr_data = {}
 
+    if args.ignore_milestones:
+        ignore_milestones = args.ignore_milestones.split(",")
+        print(f"ignored milestones: {ignore_milestones}")
+    else:
+        ignore_milestones = []
+
     query = f"is:pr is:open repo:{args.org}/{args.repo} review:approved status:success -label:DNM draft:false"
     pr_issues = gh.search_issues(query=query)
     for issue in pr_issues:
+        if issue.milestone and issue.milestone.title in ignore_milestones:
+            print(f"ignoring: {number} milestone={issue.milestone.title}")
+            continue
+
         number = issue.number
         print(f"fetch: {number}")
         pr = issue.as_pull_request()

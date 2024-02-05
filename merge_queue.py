@@ -28,6 +28,7 @@ class PRData:
     issue: github.Issue
     pr: github.PullRequest
     assignee: str = field(default=None)
+    approvers: set = field(default=None)
     time: bool = field(default=False)
     time_left: int = field(default=None)
     mergeable: bool = field(default=False)
@@ -99,6 +100,7 @@ def evaluate_criteria(number, data):
         time_left = 48 - delta_biz_hours
 
     data.assignee = assignee_approved
+    data.approvers = approvers
     data.time = time_left <= 0
     data.time_left = time_left
     data.mergeable = mergeable
@@ -115,12 +117,7 @@ def table_entry(number, data):
     title = pr.title
     author = pr.user.login
     assignees = ', '.join(sorted(a.login for a in pr.assignees))
-
-    approvers_set = set()
-    for review in data.pr.get_reviews():
-        if review.user and review.state == 'APPROVED':
-            approvers_set.add(review.user.login)
-    approvers = ', '.join(sorted(approvers_set))
+    approvers = ', '.join(sorted(data.approvers))
 
     base = pr.base.ref
     if pr.milestone:

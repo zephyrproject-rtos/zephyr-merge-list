@@ -18,6 +18,7 @@ HTML_POST = "index.html.post"
 
 PASS = "<span class=approved>&check;</span>"
 FAIL = "<span class=blocked>&#10005;</span>"
+UNKNOWN = "<span class=unknown>?</span>"
 
 UTC = datetime.timezone.utc
 
@@ -127,11 +128,16 @@ def table_entry(number, data):
     else:
         milestone = ""
 
-    mergeable = PASS if data.mergeable else FAIL
+    if data.mergeable is None:
+        mergeable = UNKNOWN
+    elif data.mergeable == True:
+        mergeable = PASS
+    else:
+        mergeable = FAIL
     assignee = PASS if data.assignee else FAIL
     time = PASS if data.time else FAIL + f" {data.time_left}h left"
 
-    if data.mergeable and data.assignee and data.time:
+    if (data.mergeable is None or data.mergeable == True) and data.assignee and data.time:
         tr_class = ""
     else:
         tr_class = "draft"

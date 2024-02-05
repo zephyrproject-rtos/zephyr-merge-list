@@ -52,6 +52,15 @@ span.blocked {
 	}
 }
 
+span.unknown {
+	color: #999926
+}
+@media (prefers-color-scheme: dark) {
+	span.unknown {
+		color: #ffff40;
+	}
+}
+
 span.none {
 	color: #999999
 }

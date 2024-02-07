@@ -195,11 +195,12 @@ def main(argv):
     query = f"is:pr is:open repo:{args.org}/{args.repo} review:approved status:success -label:DNM draft:false"
     pr_issues = gh.search_issues(query=query)
     for issue in pr_issues:
+        number = issue.number
+
         if issue.milestone and issue.milestone.title in ignore_milestones:
             print(f"ignoring: {number} milestone={issue.milestone.title}")
             continue
 
-        number = issue.number
         print(f"fetch: {number}")
         pr = issue.as_pull_request()
         pr_data[number] = PRData(issue=issue, pr=pr)

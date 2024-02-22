@@ -170,7 +170,7 @@ def parse_args(argv):
                         help="Github organisation")
     parser.add_argument("-r", "--repo", default="zephyr",
                         help="Github repository")
-    parser.add_argument("-i", "--ignore-milestones", default="future,v3.7.0",
+    parser.add_argument("-i", "--ignore-milestones", default="future",
                         help="Comma separated list of milestones to ignore")
 
     return parser.parse_args(argv)

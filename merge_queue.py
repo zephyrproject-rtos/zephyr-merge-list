@@ -172,6 +172,8 @@ def parse_args(argv):
                         help="Github repository")
     parser.add_argument("-i", "--ignore-milestones", default="future",
                         help="Comma separated list of milestones to ignore")
+    parser.add_argument("-l", "--ignore-labels", default="hwmv2-likely-conflict",
+                        help="Comma separated list of labels to ignore")
 
     return parser.parse_args(argv)
 
@@ -192,6 +194,12 @@ def main(argv):
     else:
         ignore_milestones = []
 
+    if args.ignore_labels:
+        ignore_labels = args.ignore_labels.split(",")
+        print(f"ignored labels: {ignore_labels}")
+    else:
+        ignore_labels = []
+
     query = f"is:pr is:open repo:{args.org}/{args.repo} review:approved status:success -label:DNM draft:false"
     pr_issues = gh.search_issues(query=query)
     for issue in pr_issues:
@@ -200,6 +208,11 @@ def main(argv):
         if issue.milestone and issue.milestone.title in ignore_milestones:
             print(f"ignoring: {number} milestone={issue.milestone.title}")
             continue
+
+        for label in issue.labels:
+            if label.name in args.ignore_labels:
+                print(f"ignoring: {number} label={label.name}")
+                continue
 
         print(f"fetch: {number}")
         pr = issue.as_pull_request()

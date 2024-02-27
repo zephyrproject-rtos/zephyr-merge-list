@@ -209,10 +209,14 @@ def main(argv):
             print(f"ignoring: {number} milestone={issue.milestone.title}")
             continue
 
+        skip = False
         for label in issue.labels:
             if label.name in args.ignore_labels:
                 print(f"ignoring: {number} label={label.name}")
-                continue
+                skip = True
+                break
+        if skip:
+            continue
 
         print(f"fetch: {number}")
         pr = issue.as_pull_request()

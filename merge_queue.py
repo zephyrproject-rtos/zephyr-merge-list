@@ -172,7 +172,7 @@ def parse_args(argv):
                         help="Github repository")
     parser.add_argument("-i", "--ignore-milestones", default="future",
                         help="Comma separated list of milestones to ignore")
-    parser.add_argument("-l", "--ignore-labels", default="hwmv2-likely-conflict",
+    parser.add_argument("-l", "--ignore-labels", default="",
                         help="Comma separated list of labels to ignore")
 
     return parser.parse_args(argv)

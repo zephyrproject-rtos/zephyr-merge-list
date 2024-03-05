@@ -140,7 +140,7 @@ a.blocked {
 
 <body onload="load()">
 
-<h1>Merge queue</h1>
+<h1>Merge list</h1>
 
 <h3>Last update: UPDATE_TIMESTAMP</h3>
 

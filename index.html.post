@@ -3,8 +3,8 @@
 <p><input type="checkbox" id="autoRefreshCheckbox" onclick="refreshSave()"/><span>Refresh automatically</span></p>
 
 <p>
-<a href='https://github.com/fabiobaltieri/zephyr-merge-queue/actions/workflows/update.yaml'>
-<img src='https://github.com/fabiobaltieri/zephyr-merge-queue/actions/workflows/update.yaml/badge.svg'>
+<a href='https://github.com/REPOSITORY_PATH/actions/workflows/update.yaml'>
+<img src='https://github.com/REPOSITORY_PATH/actions/workflows/update.yaml/badge.svg'>
 </a>
 </p>
 

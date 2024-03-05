@@ -32,7 +32,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir public
-          ./merge_queue.py
+          ./merge_queue.py --self ${{ github.repository }}
 
       - name: Setup pages
         uses: actions/configure-pages@v4

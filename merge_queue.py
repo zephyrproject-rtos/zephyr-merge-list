@@ -167,13 +167,14 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument("-o", "--org", default="zephyrproject-rtos",
-                        help="Github organisation")
+                        help="Target Github organisation")
     parser.add_argument("-r", "--repo", default="zephyr",
-                        help="Github repository")
+                        help="Target Github repository")
     parser.add_argument("-i", "--ignore-milestones", default="future",
                         help="Comma separated list of milestones to ignore")
     parser.add_argument("-l", "--ignore-labels", default="",
                         help="Comma separated list of labels to ignore")
+    parser.add_argument("--self", default=None, help="Self repository path")
 
     return parser.parse_args(argv)
 
@@ -228,7 +229,6 @@ def main(argv):
     with open(HTML_PRE) as f:
         html_out = f.read()
         timestamp = datetime.datetime.now(UTC).strftime("%d/%m/%Y %H:%M:%S %Z")
-        html_out = html_out.replace("UPDATE_TIMESTAMP", timestamp)
 
     debug_headers = ["number", "author", "assignees", "approvers",
                      "delta_hours", "delta_biz_hours", "time_left", "Mergeable",
@@ -243,6 +243,10 @@ def main(argv):
 
     with open(HTML_POST) as f:
         html_out += f.read()
+
+    html_out = html_out.replace("UPDATE_TIMESTAMP", timestamp)
+    if args.self:
+        html_out = html_out.replace("REPOSITORY_PATH", args.self)
 
     with open(HTML_OUT, "w") as f:
         f.write(html_out)

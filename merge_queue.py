@@ -5,6 +5,7 @@ import argparse
 import datetime
 import github
 import os
+import re
 import sys
 import tabulate
 
@@ -163,6 +164,27 @@ def table_entry(number, data):
         """
 
 
+def detect_feature_freeze_tag(repo):
+    latest_version = (0, 0, 0)
+    tags = []
+    for tag in repo.get_tags():
+        match = re.match(r"^v([0-9]+)\.([0-9]+)\.([0-9]+)", tag.name)
+        if not match:
+            continue
+
+        tags.append(tag.name)
+
+        tag_version = tuple(map(int, match.groups()))
+        if tag_version > latest_version:
+            latest_version = tag_version
+
+    latest_tag = "v%d.%d.%d" % latest_version
+    if latest_tag in tags:
+        return False, latest_tag
+
+    return True, latest_tag
+
+
 def parse_args(argv):
     parser = argparse.ArgumentParser(description=__doc__)
 
@@ -201,6 +223,10 @@ def main(argv):
     else:
         ignore_labels = []
 
+    repo = gh.get_repo(f"{args.org}/{args.repo}")
+    freeze_mode, latest_tag = detect_feature_freeze_tag(repo)
+    print(f"Latest tag: {latest_tag}, freeze mode: {freeze_mode}")
+
     query = f"is:pr is:open repo:{args.org}/{args.repo} review:approved status:success -label:DNM draft:false"
     pr_issues = gh.search_issues(query=query)
     for issue in pr_issues:
@@ -208,6 +234,10 @@ def main(argv):
 
         if issue.milestone and issue.milestone.title in ignore_milestones:
             print(f"ignoring: {number} milestone={issue.milestone.title}")
+            continue
+
+        if freeze_mode and issue.milestone and issue.milestone.title > latest_tag:
+            print(f"ignoring: {number} milestone={issue.milestone.title} > {latest_tag}")
             continue
 
         skip = False
@@ -251,6 +281,12 @@ def main(argv):
 
     labels_text = ", ".join(ignore_labels) if ignore_labels else "none"
     html_out = html_out.replace("IGNORED_LABELS", labels_text)
+
+    if freeze_mode:
+        phase_text = f"feature freeze ({latest_tag})"
+    else:
+        phase_text = f"integration ({latest_tag})"
+    html_out = html_out.replace("RELEASE_PHASE", phase_text)
 
     if args.self:
         html_out = html_out.replace("REPOSITORY_PATH", args.self)

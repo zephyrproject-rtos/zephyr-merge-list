@@ -1,5 +1,7 @@
 </table>
 
+<p>Ignored milestones: <b>IGNORED_MILESTONES</b>, ignored labels: <b>IGNORED_LABELS</b></p>
+
 <p><input type="checkbox" id="autoRefreshCheckbox" onclick="refreshSave()"/><span>Refresh automatically</span></p>
 
 <p>

@@ -245,6 +245,13 @@ def main(argv):
         html_out += f.read()
 
     html_out = html_out.replace("UPDATE_TIMESTAMP", timestamp)
+
+    milestones_text = ", ".join(ignore_milestones) if ignore_milestones else "none"
+    html_out = html_out.replace("IGNORED_MILESTONES", milestones_text)
+
+    labels_text = ", ".join(ignore_labels) if ignore_labels else "none"
+    html_out = html_out.replace("IGNORED_LABELS", labels_text)
+
     if args.self:
         html_out = html_out.replace("REPOSITORY_PATH", args.self)
 

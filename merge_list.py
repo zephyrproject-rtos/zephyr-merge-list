@@ -67,6 +67,11 @@ def evaluate_criteria(number, data):
     hotfix = "Hotfix" in labels
     trivial = "Trivial" in labels
 
+    if not mergeable:
+        print(f"re-fetch: {number}")
+        pr = data.issue.as_pull_request()
+        mergeable = pr.mergeable
+
     approvers = set()
     for review in data.pr.get_reviews():
         if review.user and review.state == 'APPROVED':

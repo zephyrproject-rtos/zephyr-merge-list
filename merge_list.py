@@ -288,9 +288,9 @@ def main(argv):
     html_out = html_out.replace("IGNORED_LABELS", labels_text)
 
     if freeze_mode:
-        phase_text = f"feature freeze ({latest_tag})"
+        phase_text = f"feature freeze (next: {latest_tag})"
     else:
-        phase_text = f"integration ({latest_tag})"
+        phase_text = f"integration (latest: {latest_tag})"
     html_out = html_out.replace("RELEASE_PHASE", phase_text)
 
     if args.self:

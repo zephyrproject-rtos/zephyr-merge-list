@@ -6,6 +6,7 @@ import datetime
 import github
 import os
 import re
+import subprocess
 import sys
 import tabulate
 
@@ -264,6 +265,12 @@ def main(argv):
     with open(HTML_PRE) as f:
         html_out = f.read()
         timestamp = datetime.datetime.now(UTC).strftime("%d/%m/%Y %H:%M:%S %Z")
+
+    try:
+        tag = subprocess.check_output(['git', 'describe', '--always'])
+        timestamp += " " + tag.decode().strip()
+    except Exception as e:
+        print(f"git describe failed: {e}")
 
     debug_headers = ["number", "author", "assignees", "approvers",
                      "delta_hours", "delta_biz_hours", "time_left", "Mergeable",

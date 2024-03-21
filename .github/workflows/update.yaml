@@ -7,13 +7,14 @@ on:
     branches:
       - main
   workflow_dispatch:
+  pull_request:
 
 defaults:
   run:
     shell: bash
 
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.workflow }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
@@ -35,14 +36,23 @@ jobs:
           ./merge_list.py --self ${{ github.repository }}
 
       - name: Setup pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v4
 
       - name: Upload pages artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: public
 
+      - name: Upload artifacts
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          path: public
+
   deploy:
+    if: github.event_name != 'pull_request'
     needs: build
     permissions:
       pages: write

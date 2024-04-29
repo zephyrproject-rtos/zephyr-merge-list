@@ -194,6 +194,37 @@ def detect_feature_freeze_tag(repo):
     return True, latest_tag
 
 
+def get_ci_status(repo):
+    main_sha = repo.get_branch('main').commit.sha
+    runs = repo.get_workflow_runs(branch="main", event="push", head_sha=main_sha)
+
+    status = []
+    for run in runs:
+        html_url = run.html_url
+        name = run.name
+        if run.status == "completed":
+            if run.conclusion == "success":
+                status.append(f"<a href={html_url}>{name} {PASS}</a>")
+            elif run.conclusion == "failure":
+                status.append(f"<a href={html_url}>{name} {FAIL}</a>")
+            else:
+                print(f"ignoring conclusion: {run.conclusion}")
+        elif run.status == "in_progress":
+            delta = datetime.datetime.now(UTC) - run.run_started_at.astimezone(UTC)
+            delta_mins = int(delta.total_seconds() / 60)
+            jobs = list(run.jobs())
+            total = len(jobs)
+            completed = sum(1 for j in jobs if j.status == "completed")
+            status.append(f"<a href={html_url}>{name} ({UNKNOWN} {completed}/{total} {delta_mins}m)</a>")
+        else:
+            print(f"ignoring status: {run.status}")
+
+    if not status:
+        return "no data"
+    else:
+        return ' - '.join(sorted(status))
+
+
 def parse_args(argv):
     parser = argparse.ArgumentParser(description=__doc__)
 
@@ -235,6 +266,9 @@ def main(argv):
     repo = gh.get_repo(f"{args.org}/{args.repo}")
     freeze_mode, latest_tag = detect_feature_freeze_tag(repo)
     print(f"Latest tag: {latest_tag}, freeze mode: {freeze_mode}")
+
+    ci_status = get_ci_status(repo)
+    print(f"CI status: {ci_status}")
 
     query = f"is:pr is:open repo:{args.org}/{args.repo} review:approved status:success -label:DNM draft:false"
     pr_issues = gh.search_issues(query=query)
@@ -290,6 +324,7 @@ def main(argv):
         html_out += f.read()
 
     html_out = html_out.replace("UPDATE_TIMESTAMP", timestamp)
+    html_out = html_out.replace("CI_STATUS", ci_status)
 
     milestones_text = ", ".join(ignore_milestones) if ignore_milestones else "none"
     html_out = html_out.replace("IGNORED_MILESTONES", milestones_text)

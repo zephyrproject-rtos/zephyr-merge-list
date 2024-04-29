@@ -143,6 +143,7 @@ a.blocked {
 <h1>Merge list</h1>
 
 <h3>Last update: UPDATE_TIMESTAMP</h3>
+<h3>CI: CI_STATUS</h3>
 
 <table class="prs" id="author">
   <tr>

@@ -78,8 +78,11 @@ def evaluate_criteria(number, data):
 
     approvers = set()
     for review in data.pr.get_reviews():
-        if review.user and review.state == 'APPROVED':
-            approvers.add(review.user.login)
+        if review.user:
+            if review.state == 'APPROVED':
+                approvers.add(review.user.login)
+            elif review.state in ['DISMISSED', 'CHANGES_REQUESTED']:
+                approvers.discard(review.user.login)
 
     assignee_approved = False
 

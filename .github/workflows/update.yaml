@@ -22,11 +22,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Install Python dependencies
-        run: pip3 install -U PyGithub tabulate
-
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install Python dependencies
+        run: pip3 install -U -r requirements.txt
 
       - name: Update
         env:

@@ -6,6 +6,12 @@ periodically using GitHub actions and the output published using GitHub pages.
 
 ## Running locally
 
+First ensure that the required Python packages are installed:
+
+```console
+pip3 install -U -r requirements.txt
+```
+
 Create a GitHub access token and set it in the `GITHUB_TOKEN` environment
 variable.
 

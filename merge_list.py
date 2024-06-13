@@ -320,7 +320,11 @@ def main(argv):
         debug_data.append(data.debug)
     print(tabulate.tabulate(debug_data, headers=debug_headers))
 
+    data_out = []
     for number, data in pr_data.items():
+        data_out.append(((data.assignee and data.time, number), data))
+
+    for (_, number), data in sorted(data_out, key=lambda x: x[0], reverse=True):
         html_out += table_entry(number, data)
 
     with open(HTML_POST) as f:

@@ -113,15 +113,48 @@ a.blocked {
 	font-style: italic;
 	opacity: 0.5;
 }
+
+.motd {
+	margin-left: auto;
+	margin-right: auto;
+	border: 3px solid red;
+	margin-top: 10px;
+	margin-bottom: 10px;
+}
 </style>
 
 <script type="text/javascript">
+	function load_motd() {
+		const url = "https://raw.githubusercontent.com/wiki/zephyrproject-rtos/zephyr/Merge-List-MOTD.md"
+		fetch(url)
+			.then((response) => {
+				if (!response.ok) {
+					throw new Error('HTTP error: ' + response.status);
+				}
+				return response.text()
+			})
+			.then((text) => {
+				console.log('motd: ' + text)
+
+				if (text == 'empty') {
+					return
+				}
+
+				const motd_table = document.getElementById('motd-table');
+				const motd_text = document.getElementById('motd-text');
+				motd_text.textContent = text
+				motd_table.hidden = false
+			});
+	}
+
 	function load() {
 		var checkbox = document.getElementById('autoRefreshCheckbox');
 		var value = localStorage.getItem('autoRefresh');
 		if (value == "true") {
 			checkbox.checked = true;
 		}
+
+		load_motd();
 	}
 
 	function refreshSave() {
@@ -144,6 +177,10 @@ a.blocked {
 
 <h3>Last update: UPDATE_TIMESTAMP</h3>
 <h3>CI: CI_STATUS</h3>
+
+<table class="motd" id="motd-table" hidden>
+  <tr><td id="motd-text"></td></tr>
+</table>
 
 <table class="prs" id="author">
   <tr>

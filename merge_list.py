@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 import argparse
 import datetime
 import github
+import html
 import os
 import re
 import subprocess
@@ -127,10 +128,10 @@ def evaluate_criteria(number, data):
 def table_entry(number, data):
     pr = data.pr
     url = pr.html_url
-    title = pr.title
-    author = pr.user.login
-    assignees = ', '.join(sorted(a.login for a in pr.assignees))
-    approvers = ', '.join(sorted(data.approvers))
+    title = html.escape(pr.title)
+    author = html.escape(pr.user.login)
+    assignees = html.escape(', '.join(sorted(a.login for a in pr.assignees)))
+    approvers = html.escape(', '.join(sorted(data.approvers)))
 
     base = pr.base.ref
     if pr.milestone:

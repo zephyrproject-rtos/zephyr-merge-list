@@ -129,19 +129,19 @@ a.blocked {
 		fetch(url)
 			.then((response) => {
 				if (!response.ok) {
-					throw new Error('HTTP error: ' + response.status);
+					throw new Error("HTTP error: " + response.status);
 				}
 				return response.text()
 			})
 			.then((text) => {
-				console.log('motd: ' + text)
+				console.log("motd: " + text)
 
-				if (text == 'empty') {
+				if (text == "empty") {
 					return
 				}
 
-				const motd_table = document.getElementById('motd-table');
-				const motd_text = document.getElementById('motd-text');
+				const motd_table = document.getElementById("motd-table");
+				const motd_text = document.getElementById("motd-text");
 				motd_text.textContent = text
 				motd_table.hidden = false
 			});
@@ -150,20 +150,20 @@ a.blocked {
 
 <script type="text/javascript">
 	addEventListener("load", (event) => {
-		var checkbox = document.getElementById('autoRefreshCheckbox');
-		var value = localStorage.getItem('autoRefresh');
+		var checkbox = document.getElementById("autoRefreshCheckbox");
+		var value = localStorage.getItem("autoRefresh");
 		if (value == "true") {
 			checkbox.checked = true;
 		}
 	});
 
 	function refreshSave() {
-		var checkbox = document.getElementById('autoRefreshCheckbox');
-		localStorage.setItem('autoRefresh', checkbox.checked);
+		var checkbox = document.getElementById("autoRefreshCheckbox");
+		localStorage.setItem("autoRefresh", checkbox.checked);
 	}
 
 	setInterval(function () {
-		if (document.getElementById('autoRefreshCheckbox').checked) {
+		if (document.getElementById("autoRefreshCheckbox").checked) {
 			location.reload();
 		}
 	}, 60000);

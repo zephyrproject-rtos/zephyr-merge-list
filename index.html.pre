@@ -124,7 +124,7 @@ a.blocked {
 </style>
 
 <script type="text/javascript">
-	function load_motd() {
+	addEventListener("load", (event) => {
 		const url = "https://raw.githubusercontent.com/wiki/zephyrproject-rtos/zephyr/Merge-List-MOTD.md"
 		fetch(url)
 			.then((response) => {
@@ -145,17 +145,17 @@ a.blocked {
 				motd_text.textContent = text
 				motd_table.hidden = false
 			});
-	}
+	});
+</script>
 
-	function load() {
+<script type="text/javascript">
+	addEventListener("load", (event) => {
 		var checkbox = document.getElementById('autoRefreshCheckbox');
 		var value = localStorage.getItem('autoRefresh');
 		if (value == "true") {
 			checkbox.checked = true;
 		}
-
-		load_motd();
-	}
+	});
 
 	function refreshSave() {
 		var checkbox = document.getElementById('autoRefreshCheckbox');
@@ -171,7 +171,7 @@ a.blocked {
 
 </head>
 
-<body onload="load()">
+<body>
 
 <h1>Merge list</h1>
 

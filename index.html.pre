@@ -125,25 +125,25 @@ a.blocked {
 
 <script type="text/javascript">
 	addEventListener("load", (event) => {
-		const url = "https://raw.githubusercontent.com/wiki/zephyrproject-rtos/zephyr/Merge-List-MOTD.md"
+		const url = "https://raw.githubusercontent.com/wiki/zephyrproject-rtos/zephyr/Merge-List-MOTD.md";
 		fetch(url)
 			.then((response) => {
 				if (!response.ok) {
 					throw new Error("HTTP error: " + response.status);
 				}
-				return response.text()
+				return response.text();
 			})
 			.then((text) => {
-				console.log("motd: " + text)
+				console.log("motd: " + text);
 
 				if (text == "empty") {
-					return
+					return;
 				}
 
 				const motd_table = document.getElementById("motd-table");
 				const motd_text = document.getElementById("motd-text");
-				motd_text.textContent = text
-				motd_table.hidden = false
+				motd_text.textContent = text;
+				motd_table.hidden = false;
 			});
 	});
 </script>

@@ -127,6 +127,7 @@ def evaluate_criteria(number, data):
 
 def table_entry(number, data):
     pr = data.pr
+    issue = data.issue
     url = pr.html_url
     title = html.escape(pr.title)
     author = html.escape(pr.user.login)
@@ -134,8 +135,8 @@ def table_entry(number, data):
     approvers = html.escape(', '.join(sorted(data.approvers)))
 
     base = pr.base.ref
-    if pr.milestone:
-        milestone = pr.milestone.title
+    if issue.milestone:
+        milestone = issue.milestone.title
     else:
         milestone = ""
 

@@ -299,6 +299,12 @@ def main(argv):
 
         print(f"fetch: {number}")
         pr = issue.as_pull_request()
+
+        if not (pr.base.ref == "main" or
+                (pr.base.ref.startswith("v") and pr.base.ref.endswith("-branch"))):
+            print(f"ignoring: {number} ref={pr.base.ref}")
+            continue
+
         pr_data[number] = PRData(issue=issue, pr=pr)
 
     for number, data in pr_data.items():

@@ -24,6 +24,7 @@ HTML_POST = "index.html.post"
 
 PASS = "<span class=approved>&check;</span>"
 FAIL = "<span class=blocked>&#10005;</span>"
+CANCELLED = "<span class=unknown>&#10005;</span>"
 UNKNOWN = "<span class=unknown>?</span>"
 
 UTC = datetime.timezone.utc
@@ -212,6 +213,8 @@ def get_ci_status(repo):
                 status.append(f"<a href={html_url}>{name} {PASS}</a>")
             elif run.conclusion == "failure":
                 status.append(f"<a href={html_url}>{name} {FAIL}</a>")
+            elif run.conclusion == "cancelled":
+                status.append(f"<a href={html_url}>{name} {CANCELLED}</a>")
             else:
                 print(f"ignoring conclusion: {run.conclusion}")
         elif run.status in ["in_progress", "queued"]:

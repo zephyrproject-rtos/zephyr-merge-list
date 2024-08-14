@@ -217,7 +217,7 @@ def get_ci_status(repo):
                 status.append(f"<a href={html_url}>{name} {CANCELLED}</a>")
             else:
                 print(f"ignoring conclusion: {run.conclusion}")
-        elif run.status in ["in_progress", "queued"]:
+        elif run.status in ["in_progress", "queued", "waiting", "pending"]:
             delta = datetime.datetime.now(UTC) - run.run_started_at.astimezone(UTC)
             delta_mins = int(delta.total_seconds() / 60)
             jobs = list(run.jobs())

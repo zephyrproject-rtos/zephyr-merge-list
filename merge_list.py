@@ -200,9 +200,38 @@ def detect_feature_freeze_tag(repo):
     return True, latest_tag
 
 
+def run_twister_not_found(runs):
+    for run in runs:
+        if run.name == "Run tests with twister":
+            return False
+    return True
+
+
+def run_twister_canceled(runs):
+    for run in runs:
+        if run.name == "Run tests with twister" and run.conclusion == "cancelled":
+            return True
+    return False
+
+
 def get_ci_status(repo):
-    main_sha = repo.get_branch('main').commit.sha
-    runs = repo.get_workflow_runs(branch="main", event="push", head_sha=main_sha)
+    commit = repo.get_branch('main').commit
+    runs = repo.get_workflow_runs(branch="main", event="push", head_sha=commit.sha)
+
+    if run_twister_canceled(runs):
+        print(f"twister run canceled on {commit.sha}")
+        search_commit = commit
+        for i in range(10):
+            search_commit = search_commit.parents[0]
+            print(f"try {search_commit.sha}")
+            search_runs = repo.get_workflow_runs(branch="main", event="push", head_sha=search_commit.sha)
+
+            if run_twister_not_found(search_runs) or run_twister_canceled(search_runs):
+                continue
+
+            print(f"using commit {search_commit.sha}")
+            runs = search_runs
+            break
 
     status = []
     for run in runs:

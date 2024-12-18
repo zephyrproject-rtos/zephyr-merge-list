@@ -33,7 +33,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir public
-          ./merge_list.py --self ${{ github.repository }}
+          python -u merge_list.py --self ${{ github.repository }}
 
       - name: Setup pages
         if: github.event_name != 'pull_request'

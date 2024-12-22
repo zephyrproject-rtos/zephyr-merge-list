@@ -38,7 +38,7 @@ class PRData:
     approvers: set = field(default=None)
     time: bool = field(default=False)
     time_left: int = field(default=None)
-    mergeable: bool = field(default=False)
+    rebaseable: bool = field(default=False)
     hotfix: bool = field(default=False)
     trivial: bool = field(default=False)
     debug: list = field(default=None)
@@ -69,14 +69,16 @@ def evaluate_criteria(number, data):
     author = pr.user.login
     labels = [l.name for l in pr.labels]
     assignees = [a.login for a in pr.assignees]
-    mergeable = pr.mergeable
+    rebaseable = pr.rebaseable
     hotfix = "Hotfix" in labels
     trivial = "Trivial" in labels
 
-    if not mergeable:
+    if rebaseable is None:
         print(f"re-fetch: {number}")
+        print(f"{rebaseable}")
         pr = data.issue.as_pull_request()
-        mergeable = pr.mergeable
+        rebaseable = pr.rebaseable
+        print(f"{rebaseable}")
 
     approvers = set()
     for review in data.pr.get_reviews():
@@ -118,12 +120,12 @@ def evaluate_criteria(number, data):
     data.approvers = approvers
     data.time = time_left <= 0
     data.time_left = time_left
-    data.mergeable = mergeable
+    data.rebaseable = rebaseable
     data.hotfix = hotfix
     data.trivial = trivial
 
     data.debug = [number, author, assignees, approvers, delta_hours,
-                  delta_biz_hours, time_left, mergeable, hotfix, trivial]
+                  delta_biz_hours, time_left, rebaseable, hotfix, trivial]
 
 
 def table_entry(number, data):
@@ -141,16 +143,16 @@ def table_entry(number, data):
     else:
         milestone = ""
 
-    if data.mergeable is None:
-        mergeable = UNKNOWN
-    elif data.mergeable == True:
-        mergeable = PASS
+    if data.rebaseable is None:
+        rebaseable = UNKNOWN
+    elif data.rebaseable == True:
+        rebaseable = PASS
     else:
-        mergeable = FAIL
+        rebaseable = FAIL
     assignee = PASS if data.assignee else FAIL
     time = PASS if data.time else FAIL + f" {data.time_left}h left"
 
-    if (data.mergeable is None or data.mergeable == True) and data.assignee and data.time:
+    if (data.rebaseable is None or data.rebaseable == True) and data.assignee and data.time:
         tr_class = ""
     else:
         tr_class = "draft"
@@ -171,7 +173,7 @@ def table_entry(number, data):
             <td>{approvers}</td>
             <td>{base}</td>
             <td>{milestone}</td>
-            <td>{mergeable}</td>
+            <td>{rebaseable}</td>
             <td>{assignee}</td>
             <td>{time}</td>
             <td>{tags_text}</td>

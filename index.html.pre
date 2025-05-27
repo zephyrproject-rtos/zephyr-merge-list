@@ -123,6 +123,8 @@ a.blocked {
 }
 </style>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js"></script>
+
 <script type="text/javascript">
 	addEventListener("load", (event) => {
 		const url = "https://raw.githubusercontent.com/wiki/zephyrproject-rtos/zephyr/Merge-List-MOTD.md";
@@ -155,7 +157,19 @@ a.blocked {
 		if (value == "true") {
 			checkbox.checked = true;
 		}
+
+		convertTimestampToRelative();
 	});
+
+	function convertTimestampToRelative() {
+		const timestampElement = document.getElementById("update-timestamp");
+		const momentTime = moment(timestampElement.textContent);
+		const headerElement = document.getElementById("last-update-header");
+
+		timestampElement.textContent = momentTime.fromNow();
+		timestampElement.title = momentTime.toString();
+		headerElement.style.visibility = "visible";
+	}
 
 	function refreshSave() {
 		var checkbox = document.getElementById("autoRefreshCheckbox");
@@ -175,7 +189,9 @@ a.blocked {
 
 <h1>Merge list</h1>
 
-<h3>Last update: UPDATE_TIMESTAMP</h3>
+<h3 id="last-update-header" style="visibility: hidden;">
+  Last update: <span id="update-timestamp">UPDATE_TIMESTAMP</span>
+</h3>
 <h3>CI: CI_STATUS</h3>
 
 <table class="motd" id="motd-table" hidden>

@@ -28,6 +28,9 @@ UNKNOWN = "<span class=unknown>?</span>"
 
 UTC = datetime.timezone.utc
 
+CI_RUN_NAME = "Run tests with twister"
+CI_RUN_MAX_AGE_DAYS = 31
+
 
 @dataclass
 class PRData:
@@ -40,6 +43,8 @@ class PRData:
     rebaseable: bool = field(default=False)
     hotfix: bool = field(default=False)
     trivial: bool = field(default=False)
+    ci_age_days: int = field(default=None)
+    ci_run_recent: bool = field(default=False)
     debug: list = field(default=None)
 
 
@@ -61,7 +66,37 @@ def calc_biz_hours(ref, delta):
     return biz_hours
 
 
-def evaluate_criteria(number, data):
+def set_ci_age_data(repo, data):
+    pr = data.pr
+
+    pr_age = datetime.datetime.now(UTC) - pr.created_at
+    if pr_age < datetime.timedelta(days=CI_RUN_MAX_AGE_DAYS):
+        print(f"ci age: skip {pr.number}")
+        data.ci_run_recent = True
+        return
+
+    runs = repo.get_workflow_runs(head_sha=pr.head.sha)
+
+    target_run = None
+    for run in runs:
+        if run.name == CI_RUN_NAME:
+            target_run = run
+            break
+
+    if not target_run:
+        return
+
+    run_age = datetime.datetime.now(UTC) - run.run_started_at
+    print(f"ci age: {pr.number}: {run_age} {run.html_url}")
+    if run_age > datetime.timedelta(days=CI_RUN_MAX_AGE_DAYS):
+        data.ci_age_days = run_age.days
+        data.ci_run_recent = False
+        return
+
+    data.ci_run_recent = True
+
+
+def evaluate_criteria(repo, number, data):
     print(f"process: {number}")
 
     pr = data.pr
@@ -113,6 +148,8 @@ def evaluate_criteria(number, data):
     else:
         time_left = 48 - delta_biz_hours
 
+    set_ci_age_data(repo, data)
+
     data.assignee = assignee_approved
     data.approvers = approvers
     data.time = time_left <= 0
@@ -122,7 +159,8 @@ def evaluate_criteria(number, data):
     data.trivial = trivial
 
     data.debug = [number, author, assignees, approvers, delta_hours,
-                  delta_biz_hours, time_left, rebaseable, hotfix, trivial]
+                  delta_biz_hours, time_left, rebaseable, hotfix, trivial,
+                  data.ci_run_recent]
 
 
 def table_entry(number, data):
@@ -339,7 +377,7 @@ def main(argv):
         pr_data[number] = PRData(issue=issue, pr=pr)
 
     for number, data in pr_data.items():
-        evaluate_criteria(number, data)
+        evaluate_criteria(repo, number, data)
 
     with open(HTML_PRE) as f:
         html_out = f.read()

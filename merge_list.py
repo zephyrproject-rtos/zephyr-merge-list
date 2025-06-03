@@ -74,10 +74,8 @@ def evaluate_criteria(number, data):
 
     if rebaseable is None:
         print(f"re-fetch: {number}")
-        print(f"{rebaseable}")
         pr = data.issue.as_pull_request()
         rebaseable = pr.rebaseable
-        print(f"{rebaseable}")
 
     approvers = set()
     for review in data.pr.get_reviews():

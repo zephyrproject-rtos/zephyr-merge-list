@@ -121,6 +121,32 @@ a.blocked {
 	margin-top: 10px;
 	margin-bottom: 10px;
 }
+
+.tag {
+	display: inline-block;
+	padding: 0px 6px;
+	border-radius: 4px;
+	font-family: sans-serif;
+	font-size: 12px;
+	font-weight: bold;
+	text-align: center;
+	white-space: nowrap;
+}
+
+.tag-trivial {
+	background-color: #f9d0b1;
+	color: black;
+}
+
+.tag-hotfix {
+	background-color: #b60205;
+	color: white;
+}
+
+.tag-oldci {
+	background-color: #fef2c0;
+	color: black;
+}
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js"></script>
@@ -200,11 +226,15 @@ a.blocked {
 
 <table class="prs" id="author">
   <tr>
-    <th>#</th><th>Title</th><th>Author</th><th>Assignee</th><th>Approvers</th>
+    <th>#</th>
+    <th>Title</th>
+    <th>Tags</th>
+    <th>Author</th>
+    <th>Assignee</th>
+    <th>Approvers</th>
     <th>Base</th>
     <th>Milestone</th>
     <th title="Mergeable">&#8624;</th>
     <th title="Approved">&check;</th>
     <th title="Review time">&#9202;</th>
-    <th title="Tags">&#127991;</th>
   </tr>

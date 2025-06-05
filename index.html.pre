@@ -147,6 +147,11 @@ a.blocked {
 	background-color: #fef2c0;
 	color: black;
 }
+
+.tag-dnm {
+	background-color: #b60205;
+	color: white;
+}
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js"></script>

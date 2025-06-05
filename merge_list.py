@@ -43,6 +43,7 @@ class PRData:
     rebaseable: bool = field(default=False)
     hotfix: bool = field(default=False)
     trivial: bool = field(default=False)
+    dnm: bool = field(default=False)
     ci_age_days: int = field(default=None)
     ci_run_recent: bool = field(default=False)
     debug: list = field(default=None)
@@ -106,6 +107,11 @@ def evaluate_criteria(repo, number, data):
     rebaseable = pr.rebaseable
     hotfix = "Hotfix" in labels
     trivial = "Trivial" in labels
+
+    for label in labels:
+        if "DNM" in label:
+            data.dnm = True
+            break
 
     if rebaseable is None:
         print(f"re-fetch: {number}")
@@ -199,6 +205,8 @@ def table_entry(number, data):
         tags.append("<span class='tag tag-trivial'>trivial</span>")
     if not data.ci_run_recent:
         tags.append(f"<span class='tag tag-oldci'>ci {data.ci_age_days}d</span>")
+    if data.dnm:
+        tags.append("<span class='tag tag-dnm'>dnm</span>")
     tags_text = ' '.join(tags)
 
     return f"""

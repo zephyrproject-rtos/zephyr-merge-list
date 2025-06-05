@@ -194,15 +194,18 @@ def table_entry(number, data):
 
     tags = []
     if data.hotfix:
-        tags.append("H")
+        tags.append("<span class='tag tag-hotfix'>hotfix</span>")
     if data.trivial:
-        tags.append("T")
+        tags.append("<span class='tag tag-trivial'>trivial</span>")
+    if not data.ci_run_recent:
+        tags.append(f"<span class='tag tag-oldci'>ci {data.ci_age_days}d</span>")
     tags_text = ' '.join(tags)
 
     return f"""
         <tr class="{tr_class}">
             <td><a href="{url}">{number}</a></td>
             <td><a href="{url}">{title}</a></td>
+            <td>{tags_text}</td>
             <td>{author}</td>
             <td>{assignees}</td>
             <td>{approvers}</td>
@@ -211,7 +214,6 @@ def table_entry(number, data):
             <td>{rebaseable}</td>
             <td>{assignee}</td>
             <td>{time}</td>
-            <td>{tags_text}</td>
         </tr>
         """
 

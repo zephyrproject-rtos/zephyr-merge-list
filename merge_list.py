@@ -8,6 +8,7 @@ import argparse
 import datetime
 import github
 import html
+import json
 import os
 import re
 import sys
@@ -20,6 +21,8 @@ PER_PAGE = 100
 HTML_OUT = "public/index.html"
 HTML_PRE = "index.html.pre"
 HTML_POST = "index.html.post"
+
+CI_JSON_OUT = "public/ci.json"
 
 PASS = "<span class=approved>&check;</span>"
 FAIL = "<span class=blocked>&#10005;</span>"
@@ -281,16 +284,20 @@ def get_ci_status(repo):
             break
 
     status = []
+    runs_data = []
     for run in runs:
         html_url = run.html_url
         name = run.name
         if run.status == "completed":
             if run.conclusion == "success":
                 status.append(f"<a href={html_url}>{name} {PASS}</a>")
+                runs_data.append({"name": name, "status": "pass"})
             elif run.conclusion == "failure":
                 status.append(f"<a href={html_url}>{name} {FAIL}</a>")
+                runs_data.append({"name": name, "status": "fail"})
             elif run.conclusion == "cancelled":
                 status.append(f"<a href={html_url}>{name} {CANCELLED}</a>")
+                runs_data.append({"name": name, "status": "cancelled"})
             else:
                 print(f"ignoring conclusion: {run.conclusion}")
         elif run.status in ["in_progress", "queued", "waiting", "pending"]:
@@ -300,8 +307,12 @@ def get_ci_status(repo):
             total = len(jobs)
             completed = sum(1 for j in jobs if j.status == "completed")
             status.append(f"<a href={html_url}>{name} ({UNKNOWN} {completed}/{total} {delta_mins}m)</a>")
+            runs_data.append({"name": name, "status": "running"})
         else:
             print(f"ignoring status: {run.status}")
+
+    with open(CI_JSON_OUT, "w") as f:
+        json.dump({"runs": runs_data}, f, indent=4)
 
     if not status:
         return "no data"

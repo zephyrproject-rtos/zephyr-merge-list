@@ -5,6 +5,8 @@
 
 <p><input type="checkbox" id="autoRefreshCheckbox" onclick="refreshSave()"/><span>Refresh automatically</span></p>
 
+<p><button onclick="openMergeablePRs()" class="mergeable-button">Open All Mergeable PRs</button></p>
+
 <p>
 <a href='https://github.com/REPOSITORY_PATH/actions/workflows/update.yaml'>
 <img src='https://github.com/REPOSITORY_PATH/actions/workflows/update.yaml/badge.svg'>

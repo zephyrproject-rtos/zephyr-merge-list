@@ -114,6 +114,16 @@ a.blocked {
 	opacity: 0.5;
 }
 
+.prs tr.mergeable {
+	background-color: #e8f5e8;
+	font-weight: 500;
+}
+@media (prefers-color-scheme: dark) {
+	.prs tr.mergeable {
+		background-color: #1a3d1a;
+	}
+}
+
 .motd {
 	margin-left: auto;
 	margin-right: auto;
@@ -151,6 +161,32 @@ a.blocked {
 .tag-dnm {
 	background-color: #b60205;
 	color: white;
+}
+
+.mergeable-button {
+	padding: 8px 16px;
+	background-color: #269926;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 14px;
+	transition: background-color 0.2s;
+}
+
+.mergeable-button:hover {
+	background-color: #1e7a1e;
+}
+
+@media (prefers-color-scheme: dark) {
+	.mergeable-button {
+		background-color: #40ff40;
+		color: #000000;
+	}
+
+	.mergeable-button:hover {
+		background-color: #33cc33;
+	}
 }
 </style>
 
@@ -212,6 +248,27 @@ a.blocked {
 			location.reload();
 		}
 	}, 60000);
+
+	function openMergeablePRs() {
+		const prTable = document.getElementById("author");
+		const mergeableRows = prTable.querySelectorAll("tr.mergeable");
+
+		let openedCount = 0;
+		mergeableRows.forEach(row => {
+			// Get the PR URL from the first cell
+			const prLink = row.cells[0].querySelector('a');
+			if (prLink) {
+				window.open(prLink.href, '_blank');
+				openedCount++;
+			}
+		});
+
+		if (openedCount === 0) {
+			alert("No mergeable PRs found (PRs need to target 'main' and have three green checkmarks)");
+		} else {
+			alert(`Opened ${openedCount} mergeable PR(s) in new tabs`);
+		}
+	}
 </script>
 
 </head>

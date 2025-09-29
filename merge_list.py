@@ -196,7 +196,17 @@ def table_entry(number, data):
     assignee = PASS if data.assignee else FAIL
     time = PASS if data.time else FAIL + f" {data.time_left}h left"
 
-    if (data.rebaseable is None or data.rebaseable == True) and data.assignee and data.time:
+    # Determine if PR is mergeable (targets main and has three green checkmarks)
+    is_mergeable = (
+        base == "main" and
+        data.rebaseable and
+        data.assignee and
+        data.time
+    )
+
+    if is_mergeable:
+        tr_class = "mergeable"
+    elif (data.rebaseable is None or data.rebaseable) and data.assignee and data.time:
         tr_class = ""
     else:
         tr_class = "draft"

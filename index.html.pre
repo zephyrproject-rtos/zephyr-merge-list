@@ -265,8 +265,6 @@ a.blocked {
 
 		if (openedCount === 0) {
 			alert("No mergeable PRs found (PRs need to target 'main' and have three green checkmarks)");
-		} else {
-			alert(`Opened ${openedCount} mergeable PR(s) in new tabs`);
 		}
 	}
 </script>

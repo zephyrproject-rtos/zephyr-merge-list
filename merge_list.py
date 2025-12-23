@@ -349,8 +349,8 @@ def parse_args(argv):
 def main(argv):
     args = parse_args(argv)
 
-    token = os.environ.get('GITHUB_TOKEN', None)
-    gh = github.Github(token, per_page=PER_PAGE)
+    auth = github.Auth.Token(os.environ.get('GITHUB_TOKEN', None))
+    gh = github.Github(auth=auth, per_page=PER_PAGE)
 
     print_rate_limit(gh, args.org)
 

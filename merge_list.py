@@ -49,6 +49,7 @@ class PRData:
     dnm: bool = field(default=False)
     ci_age_days: int = field(default=None)
     ci_run_recent: bool = field(default=False)
+    dismissed: bool = field(default=False)
     debug: list = field(default=None)
 
 
@@ -122,7 +123,9 @@ def evaluate_criteria(repo, number, data):
         rebaseable = pr.rebaseable
 
     approvers = set()
+    reviews = {}
     for review in data.pr.get_reviews():
+        reviews[review.id] = review
         if review.user:
             if review.state == 'APPROVED':
                 approvers.add(review.user.login)
@@ -140,10 +143,22 @@ def evaluate_criteria(repo, number, data):
         if approver in assignees:
             assignee_approved = True
 
+    dismissed = False
+
     reference_time = pr.created_at
     for event in data.pr.get_issue_events():
         if event.event == 'ready_for_review':
             reference_time = event.created_at
+        elif event.event == 'review_dismissed':
+            dismissed_review = event.dismissed_review
+            review = reviews[dismissed_review['review_id']]
+
+            # Do not trigger for approval dismissal via push.
+            if ('dismissal_commit_id' not in dismissed_review and
+                dismissed_review['state'] == 'changes_requested' and
+                event.actor.login != review.user.login):
+                dismissed = True
+
     now = datetime.datetime.now(UTC)
 
     delta = now - reference_time.astimezone(UTC)
@@ -166,10 +181,11 @@ def evaluate_criteria(repo, number, data):
     data.rebaseable = rebaseable
     data.hotfix = hotfix
     data.trivial = trivial
+    data.dismissed = dismissed
 
     data.debug = [number, author, assignees, approvers, delta_hours,
                   delta_biz_hours, time_left, rebaseable, hotfix, trivial,
-                  data.ci_run_recent]
+                  data.ci_run_recent, dismissed]
 
 
 def table_entry(number, data):
@@ -218,6 +234,8 @@ def table_entry(number, data):
         tags.append("<span class='tag tag-trivial'>trivial</span>")
     if not data.ci_run_recent:
         tags.append(f"<span class='tag tag-oldci'>ci {data.ci_age_days}d</span>")
+    if data.dismissed:
+        tags.append(f"<span class='tag tag-dismissed'>review dismissed</span>")
     if data.dnm:
         tags.append("<span class='tag tag-dnm'>dnm</span>")
     tags_text = ' '.join(tags)
@@ -416,7 +434,7 @@ def main(argv):
 
     debug_headers = ["number", "author", "assignees", "approvers",
                      "delta_hours", "delta_biz_hours", "time_left", "Mergeable",
-                     "Hotfix", "Trivial"]
+                     "Hotfix", "Trivial", "Dismissed"]
     debug_data = []
     for _, data in pr_data.items():
         debug_data.append(data.debug)

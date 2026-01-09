@@ -70,6 +70,17 @@ def calc_biz_hours(ref, delta):
 
     return biz_hours
 
+def calc_biz_weekend_hours(ref, delta_hours):
+    date = ref
+
+    for _ in range(int(delta_hours)):
+        date = date + datetime.timedelta(hours=1)
+        if date.weekday() >= 5:
+            date0 = date.replace(hour=0)
+            next_monday = date0 + datetime.timedelta(7 - date0.weekday())
+            date = next_monday
+
+    return int((date - ref).total_seconds() / 3600)
 
 def set_ci_age_data(repo, data):
     pr = data.pr
@@ -171,6 +182,8 @@ def evaluate_criteria(repo, number, data):
         time_left = 4 - delta_hours
     else:
         time_left = 48 - delta_biz_hours
+        if time_left > 0:
+            time_left = calc_biz_weekend_hours(now, time_left)  # adjust for weekend hours
 
     set_ci_age_data(repo, data)
 

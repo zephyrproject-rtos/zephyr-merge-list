@@ -156,7 +156,8 @@ def evaluate_criteria(repo, number, data):
             # Do not trigger for approval dismissal via push.
             if ('dismissal_commit_id' not in dismissed_review and
                 dismissed_review['state'] == 'changes_requested' and
-                event.actor.login != review.user.login):
+                event.actor.login != review.user.login and
+                event.actor.login not in approvers):
                 dismissed = True
 
     now = datetime.datetime.now(UTC)

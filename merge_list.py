@@ -37,7 +37,7 @@ CI_RUN_MAX_AGE_DAYS = 31
 
 @dataclass
 class PRData:
-    issue: github.Issue
+    pr_raw: dict
     pr: github.PullRequest
     assignee: str = field(default=None)
     approvers: set = field(default=None)
@@ -119,7 +119,7 @@ def evaluate_criteria(repo, number, data):
 
     if rebaseable is None:
         print(f"re-fetch: {number}")
-        pr = data.issue.as_pull_request()
+        pr = repo.get_pull(number)
         rebaseable = pr.rebaseable
 
     approvers = set()
@@ -191,7 +191,6 @@ def evaluate_criteria(repo, number, data):
 
 def table_entry(number, data):
     pr = data.pr
-    issue = data.issue
     url = pr.html_url
     title = html.escape(pr.title)
     author = html.escape(pr.user.login)
@@ -199,8 +198,8 @@ def table_entry(number, data):
     approvers = html.escape(', '.join(sorted(data.approvers)))
 
     base = pr.base.ref
-    if issue.milestone:
-        milestone = issue.milestone.title
+    if pr.milestone:
+        milestone = pr.milestone.title
     else:
         milestone = ""
 
@@ -365,6 +364,78 @@ def parse_args(argv):
     return parser.parse_args(argv)
 
 
+QUERY = """
+query($owner: String!, $name: String!, $cursor: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequests(first: 50, states: OPEN, after: $cursor) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        number
+        isDraft
+        milestone {
+          title
+        }
+        labels(first: 30) {
+          nodes {
+            name
+          }
+        }
+        reviewDecision
+        statusCheckRollup {
+          state
+        }
+      }
+    }
+  }
+}
+"""
+
+def get_prs(gh, org, repo):
+    variables = {
+            "owner": org,
+            "name": repo,
+            "cursor": None,
+    }
+
+    all_prs = []
+    has_next_page = True
+
+    while has_next_page:
+        _, resp = gh.requester.graphql_query(QUERY, variables)
+
+        prs = resp["data"]["repository"]["pullRequests"]
+
+        all_prs.extend(prs["nodes"])
+        has_next_page = prs["pageInfo"]["hasNextPage"]
+        variables["cursor"] = prs["pageInfo"]["endCursor"]
+
+        print(f"query: {len(all_prs)} PRs")
+
+    return all_prs
+
+def we_dont_care(pr):
+    try:
+        if pr["isDraft"]:
+            return True
+
+        for label in pr["labels"]["nodes"]:
+            if "DNM" in label["name"]:
+                return True
+
+        if pr['reviewDecision'] != "APPROVED":
+            return True
+
+        if pr["statusCheckRollup"]["state"] != "SUCCESS":
+            return True
+    except Exception as e:
+        print(f"data error, skipping: {e}, {pr}")
+        return True
+
+    return False
+
 def main(argv):
     args = parse_args(argv)
 
@@ -394,37 +465,40 @@ def main(argv):
     ci_status = get_ci_status(repo)
     print(f"CI status: {ci_status}")
 
-    query = f"is:pr is:open repo:{args.org}/{args.repo} review:approved status:success -label:DNM draft:false"
-    pr_issues = gh.search_issues(query=query)
-    for issue in pr_issues:
-        number = issue.number
-
-        if issue.milestone and issue.milestone.title in ignore_milestones:
-            print(f"ignoring: {number} milestone={issue.milestone.title}")
+    all_prs = get_prs(gh, args.org, args.repo)
+    for pr_raw in all_prs:
+        if we_dont_care(pr_raw):
             continue
 
-        if freeze_mode and issue.milestone and issue.milestone.title > latest_tag:
-            print(f"ignoring: {number} milestone={issue.milestone.title} > {latest_tag}")
+        number = pr_raw["number"]
+        milestone = pr_raw["milestone"]
+
+        if milestone and milestone["title"] in ignore_milestones:
+            print(f"ignoring: {number} milestone={milestone['title']}")
+            continue
+
+        if freeze_mode and milestone and milestone["title"] > latest_tag:
+            print(f"ignoring: {number} milestone={milestone['title']} > {latest_tag}")
             continue
 
         skip = False
-        for label in issue.labels:
-            if label.name in args.ignore_labels:
-                print(f"ignoring: {number} label={label.name}")
+        for label in pr_raw["labels"]["nodes"]:
+            if label["name"] in ignore_labels:
+                print(f"ignoring: {number} label={label['name']}")
                 skip = True
                 break
         if skip:
             continue
 
         print(f"fetch: {number}")
-        pr = issue.as_pull_request()
+        pr = repo.get_pull(number)
 
         if not (pr.base.ref == "main" or
                 (pr.base.ref.startswith("v") and pr.base.ref.endswith("-branch"))):
             print(f"ignoring: {number} ref={pr.base.ref}")
             continue
 
-        pr_data[number] = PRData(issue=issue, pr=pr)
+        pr_data[number] = PRData(pr_raw=pr_raw, pr=pr)
 
     for number, data in pr_data.items():
         evaluate_criteria(repo, number, data)

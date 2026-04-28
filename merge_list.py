@@ -369,7 +369,7 @@ def parse_args(argv):
                         help="Target Github organisation")
     parser.add_argument("-r", "--repo", default="zephyr",
                         help="Target Github repository")
-    parser.add_argument("-i", "--ignore-milestones", default="future",
+    parser.add_argument("-i", "--ignore-milestones", default="",
                         help="Comma separated list of milestones to ignore")
     parser.add_argument("-l", "--ignore-labels", default="",
                         help="Comma separated list of labels to ignore")

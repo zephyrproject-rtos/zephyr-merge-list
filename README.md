@@ -25,7 +25,7 @@ x-ratelimit-remaining: 4999
 x-ratelimit-reset: 1711729218
 x-ratelimit-used: 1
 x-ratelimit-resource: core
-ignored milestones: ['future']
+ignored milestones: []
 Latest tag: v3.6.0, freeze mode: False
 fetch: 70900
 fetch: 70883

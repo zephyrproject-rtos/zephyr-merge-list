@@ -23,6 +23,7 @@ HTML_PRE = "index.html.pre"
 HTML_POST = "index.html.post"
 
 CI_JSON_OUT = "public/ci.json"
+CI_IGNORE = ["Code Coverage with codecov"]
 
 PASS = "<span class=approved>&check;</span>"
 FAIL = "<span class=blocked>&#10005;</span>"
@@ -325,6 +326,10 @@ def get_ci_status(repo):
     for run in runs:
         html_url = run.html_url
         name = run.name
+
+        if name in CI_IGNORE:
+            continue
+
         if run.status == "completed":
             if run.conclusion == "success":
                 status.append(f"<a href={html_url}>{name} {PASS}</a>")

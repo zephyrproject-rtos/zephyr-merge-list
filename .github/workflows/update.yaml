@@ -2,7 +2,7 @@ name: Update and publish
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/10 * * * *'
   push:
     branches:
       - main

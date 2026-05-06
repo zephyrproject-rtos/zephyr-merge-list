@@ -372,10 +372,6 @@ def parse_args(argv):
                         help="Target Github organisation")
     parser.add_argument("-r", "--repo", default="zephyr",
                         help="Target Github repository")
-    parser.add_argument("-i", "--ignore-milestones", default="",
-                        help="Comma separated list of milestones to ignore")
-    parser.add_argument("-l", "--ignore-labels", default="",
-                        help="Comma separated list of labels to ignore")
     parser.add_argument("--self", default=None, help="Self repository path")
 
     return parser.parse_args(argv)
@@ -468,18 +464,6 @@ def main(argv):
 
     pr_data = {}
 
-    if args.ignore_milestones:
-        ignore_milestones = args.ignore_milestones.split(",")
-        print(f"ignored milestones: {ignore_milestones}")
-    else:
-        ignore_milestones = []
-
-    if args.ignore_labels:
-        ignore_labels = args.ignore_labels.split(",")
-        print(f"ignored labels: {ignore_labels}")
-    else:
-        ignore_labels = []
-
     repo = gh.get_repo(f"{args.org}/{args.repo}")
     freeze_mode, latest_tag = detect_feature_freeze_tag(repo)
     print(f"Latest tag: {latest_tag}, freeze mode: {freeze_mode}")
@@ -499,21 +483,8 @@ def main(argv):
         number = pr_raw["number"]
         milestone = pr_raw["milestone"]
 
-        if milestone and milestone["title"] in ignore_milestones:
-            print(f"ignoring: {number} milestone={milestone['title']}")
-            continue
-
         if freeze_mode and milestone and milestone["title"] > latest_tag:
             print(f"ignoring: {number} milestone={milestone['title']} > {latest_tag}")
-            continue
-
-        skip = False
-        for label in pr_raw["labels"]["nodes"]:
-            if label["name"] in ignore_labels:
-                print(f"ignoring: {number} label={label['name']}")
-                skip = True
-                break
-        if skip:
             continue
 
         print(f"fetch: {number}")
@@ -553,12 +524,6 @@ def main(argv):
 
     html_out = html_out.replace("UPDATE_TIMESTAMP", timestamp)
     html_out = html_out.replace("CI_STATUS", ci_status)
-
-    milestones_text = ", ".join(ignore_milestones) if ignore_milestones else "none"
-    html_out = html_out.replace("IGNORED_MILESTONES", milestones_text)
-
-    labels_text = ", ".join(ignore_labels) if ignore_labels else "none"
-    html_out = html_out.replace("IGNORED_LABELS", labels_text)
 
     if freeze_mode:
         phase_text = f"feature freeze (next: {latest_tag})"

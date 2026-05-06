@@ -13,6 +13,7 @@ import os
 import re
 import sys
 import tabulate
+import gzip
 
 token = os.environ["GITHUB_TOKEN"]
 
@@ -21,6 +22,8 @@ PER_PAGE = 100
 HTML_OUT = "public/index.html"
 HTML_PRE = "index.html.pre"
 HTML_POST = "index.html.post"
+
+PR_JSON_OUT = "public/pr.json.gz"
 
 CI_JSON_OUT = "public/ci.json"
 CI_IGNORE = ["Code Coverage with codecov"]
@@ -485,6 +488,10 @@ def main(argv):
     print(f"CI status: {ci_status}")
 
     all_prs = get_prs(gh, args.org, args.repo)
+
+    with gzip.open(PR_JSON_OUT, "wt") as f:
+        json.dump(all_prs, f, indent=4)
+
     for pr_raw in all_prs:
         if we_dont_care(pr_raw):
             continue

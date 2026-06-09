@@ -278,9 +278,12 @@ def detect_feature_freeze_tag(repo):
         if not match:
             continue
 
+        tag_version = tuple(map(int, match.groups()))
+        if tag_version[2] != 0:
+            continue
+
         tags.append(tag.name)
 
-        tag_version = tuple(map(int, match.groups()))
         if tag_version > latest_version:
             latest_version = tag_version
 

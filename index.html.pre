@@ -1,310 +1,564 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zephyr merge list</title>
+
 <style>
+/* Theme: every color lives in a variable so light and dark stay in sync. */
+:root {
+	--bg: #f6f7f9;
+	--panel: #ffffff;
+	--fg: #1d2531;
+	--muted: #5d6b83;
+	--border: #dce2eb;
+	--accent: #6e37c8;
+	--ok: #1a7f37;
+	--ok-bg: #def0e3;
+	--warn: #7d5c00;
+	--warn-bg: #fdeeba;
+	--bad: #b42323;
+	--bad-bg: #fbe2e2;
+	--neutral-bg: #e8ecf2;
+	--stripe: #eef1f6;          /* even-row zebra band */
+	--row-ready: #e4f6ea;       /* ready rows, overrides the zebra band */
+	--row-hover: #e2e8f2;
+	--header-bg: #333f67;
+	--header-fg: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+	:root {
+		/* Lifted off pure black: the page, the panel and the zebra band sit
+		 * on distinct, clearly separated steps so nothing reads as
+		 * "dark on dark". */
+		--bg: #10151d;
+		--panel: #1e2735;
+		--fg: #e8ecf4;
+		--muted: #a3b0c6;
+		--border: #38445a;
+		--accent: #b48cf5;
+		--ok: #56d47b;
+		--ok-bg: #1c3a28;
+		--warn: #edc84f;
+		--warn-bg: #3d3410;
+		--bad: #f77f7f;
+		--bad-bg: #45201f;
+		--neutral-bg: #2b3547;
+		--stripe: #262f40;          /* even-row zebra band, a step above panel */
+		--row-ready: #204a30;       /* clearly green, not near-black */
+		--row-hover: #313d52;
+		--header-bg: #2c3759;
+		--header-fg: #e9eef9;
+	}
+}
+
+* { box-sizing: border-box; }
+
+/* Use normal document scrolling. The table is responsive, so it stays
+ * within the viewport without a second scrolling region. */
 body {
-	font-family: Roboto, Arial, sans-serif;
-	font-size: 14px
-}
-@media (prefers-color-scheme: dark) {
-	body {
-		background-color: #0d1111;
-		color: #e0e0e0;
-	}
-}
-
-a {
-	text-decoration: none;
-	color: #000000;
-}
-@media (prefers-color-scheme: dark) {
-	a {
-		color: #eeeeee;
-	}
+	margin: 0;
+	padding: 0 var(--pad) 16px;
+	background: var(--bg);
+	color: var(--fg);
+	font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	font-size: 14px;
+	line-height: 1.4;
 }
 
-a:hover {
-	text-decoration: underline;
-	color: #000000;
-}
-@media (prefers-color-scheme: dark) {
-	a:hover {
-		color: #eeeeee;
-	}
+:root { --pad: 24px; }
+
+.page-header { padding-top: 12px; }
+
+/* Keep the side padding from eating the narrow screens. */
+@media (max-width: 640px) {
+	:root { --pad: 12px; }
+	body { padding-bottom: 12px; }
+	.page-header { padding-top: 8px; }
 }
 
-span.approved {
-	color: #269926
+a { color: inherit; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ---- Page header ------------------------------------------------------ */
+
+.page-header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.page-header h1 { margin: 4px 0 0; font-size: 21px; }
+.page-header .subtitle { color: var(--muted); margin: 0; }
+
+/* The help is a quiet inline link, not a standalone button, so it costs
+ * no vertical space of its own. */
+.help-link {
+	padding: 0;
+	background: none;
+	border: none;
+	color: var(--accent);
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+	white-space: nowrap;
 }
-@media (prefers-color-scheme: dark) {
-	span.approved {
-		color: #40ff40
-	}
+.help-link:hover { text-decoration: underline; }
+
+/* ---- Summary bar ------------------------------------------------------- */
+
+/* Keep the update time and CI status together in one compact line. */
+.metabar {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px 14px;
+	margin: 10px 0;
+	padding: 8px 14px;
+	background: var(--panel);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	font-size: 13px;
+}
+.metabar .meta-label {
+	color: var(--muted);
+	font-weight: 600;
+	margin-right: 4px;
+}
+.metabar .meta-sep { color: var(--border); }
+#update-timestamp.stale { color: var(--warn); font-weight: 600; }
+#update-timestamp.very-stale { color: var(--bad); font-weight: 600; }
+
+.ci-badges { display: inline-flex; flex-wrap: wrap; gap: 6px; vertical-align: middle; }
+
+.ci-badge {
+	display: inline-block;
+	padding: 1px 8px;
+	border-radius: 999px;
+	font-size: 12px;
+	background: var(--neutral-bg);
+	white-space: nowrap;
+}
+.ci-badge .lucide {
+	width: 1em;
+	height: 1em;
+	margin-right: 4px;
+	vertical-align: -0.15em;
+}
+.ci-pass { background: var(--ok-bg); color: var(--ok); }
+.ci-fail { background: var(--bad-bg); color: var(--bad); }
+.ci-cancelled { background: var(--warn-bg); color: var(--warn); }
+.ci-running { background: var(--neutral-bg); color: var(--accent); font-weight: 600; }
+.ci-running .lucide { animation: ci-spin 2s linear infinite; }
+@keyframes ci-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+	.ci-running .lucide { animation: none; }
 }
 
-span.blocked {
-	color: #992626
-}
-@media (prefers-color-scheme: dark) {
-	span.blocked {
-		color: #ff4040;
-	}
-}
-
-span.unknown {
-	color: #999926
-}
-@media (prefers-color-scheme: dark) {
-	span.unknown {
-		color: #ffff40;
-	}
-}
-
-span.none {
-	color: #999999
-}
-
-a.approved {
-	color: #269926
-}
-
-a.blocked {
-	color: #992626
-}
-
-.prs {
-	border-collapse: collapse;
-	width: 100%;
-}
-
-.prs td, .prs th {
-	border: 1px solid #ddd;
-	padding: 4px;
-}
-
-.prs tr:nth-child(even){
-	background-color: #f2f2f2;
-}
-@media (prefers-color-scheme: dark) {
-	.prs tr:nth-child(even){
-		background-color: #303030;
-	}
-}
-
-.prs tr:hover {
-	background-color: #eeeeee;
-}
-@media (prefers-color-scheme: dark) {
-	.prs tr:hover {
-		background-color: #555555;
-	}
-}
-
-.prs th {
-	padding-top: 4px;
-	padding-bottom: 4px;
-	text-align: left;
-	background-color: #333f67;
-	color: white;
-}
-
-.prs tr.draft {
-	font-style: italic;
-	opacity: 0.5;
-}
-
-.prs tr.mergeable {
-	background-color: #e8f5e8;
-	font-weight: 500;
-}
-@media (prefers-color-scheme: dark) {
-	.prs tr.mergeable {
-		background-color: #1a3d1a;
-	}
-}
+/* ---- MOTD banner ------------------------------------------------------- */
 
 .motd {
-	margin-left: auto;
-	margin-right: auto;
-	border: 3px solid red;
-	margin-top: 10px;
-	margin-bottom: 10px;
+	border: 1px solid var(--bad);
+	border-left-width: 6px;
+	border-radius: 8px;
+	background: var(--bad-bg);
+	padding: 10px 14px;
+	margin: 12px 0;
 }
+
+/* ---- Table ------------------------------------------------------------- */
+
+.table-wrap {
+	background: var(--panel);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	/* Let the dense table use the full viewport while keeping its content
+	 * aligned with the rest of the page through first/last-cell padding. */
+	margin: 0 calc(-1 * var(--pad));
+}
+
+.prs { border-collapse: collapse; width: 100%; }
+
+.prs th, .prs td {
+	padding: 3px 10px;
+	border-bottom: 1px solid var(--border);
+	text-align: left;
+	vertical-align: top;
+}
+.prs th:first-child, .prs td:first-child { padding-left: var(--pad); }
+.prs th:last-child, .prs td:last-child { padding-right: var(--pad); }
+
+.prs thead th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	background: var(--header-bg);
+	color: var(--header-fg);
+	font-size: 12px;
+	white-space: nowrap;
+	cursor: help;
+	padding-top: 6px;
+	padding-bottom: 6px;
+	/* Draw the header's bottom separator as an inset shadow that travels
+	 * with the sticky cell. A collapsed border stays behind at the
+	 * original scroll position and lets a row pixel bleed over the edge. */
+	border-bottom: none;
+	box-shadow: inset 0 -1px 0 var(--border);
+}
+
+.prs tbody tr:last-child td { border-bottom: none; }
+
+/* Row backgrounds, in increasing order of precedence (later rules win at
+ * equal specificity):
+ *   1. zebra banding on even rows for readability across wide rows;
+ *   2. ready rows are tinted green regardless of parity (this, plus the
+ *      three green gate icons, is how "ready" reads now the status column
+ *      is gone);
+ *   3. hover always wins.
+ * Which branch a PR targets is left to the Target column, so no extra
+ * per-row shading competes with the banding. */
+.prs tbody tr:nth-child(even) { background: var(--stripe); }
+.prs tbody tr[data-status="ready"] { background: var(--row-ready); }
+.prs tbody tr:hover { background: var(--row-hover); }
+
+.prs td.num, .prs td.gate { white-space: nowrap; }
+.prs td.gate { text-align: center; }
+.prs th.gate-col { text-align: center; }
+
+.gate-icons {
+	display: inline-grid;
+	grid-template-columns: 18px 18px 52px;
+	align-items: center;
+	justify-items: center;
+	column-gap: 4px;
+	vertical-align: middle;
+}
+.gate-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 3px;
+}
+.gate-icon .lucide {
+	width: 16px;
+	height: 16px;
+	flex: none;
+}
+.gate-review { justify-self: start; }
+
+.gate-pass { color: var(--ok); font-weight: 600; }
+.gate-fail { color: var(--bad); font-weight: 600; }
+.gate-wait { color: var(--warn); font-weight: 600; white-space: nowrap; }
+.gate-unknown { color: var(--muted); }
+
+.muted { color: var(--muted); }
+
+/* ---- Label tags (shown next to PR titles) ------------------------------ */
 
 .tag {
 	display: inline-block;
-	padding: 0px 6px;
+	padding: 0 6px;
 	border-radius: 4px;
-	font-family: sans-serif;
-	font-size: 12px;
-	font-weight: bold;
-	text-align: center;
+	font-size: 11px;
+	font-weight: 600;
 	white-space: nowrap;
+	cursor: default;
+}
+.tag-hotfix { background: #b60205; color: white; }
+.tag-trivial { background: #f9d0b1; color: #402000; }
+.tag-override { background: #6f42c1; color: white; }
+.tag-oldci { background: #fef2c0; color: #574b00; }
+.tag-dismissed { background: #ff69b4; color: #3d0d24; }
+.tag-dnm { background: #b60205; color: white; }
+
+/* ---- Footer / misc ----------------------------------------------------- */
+
+.toolbar {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	flex-wrap: wrap;
+	margin: 12px 0;
 }
 
-.tag-trivial {
-	background-color: #f9d0b1;
-	color: black;
-}
-
-.tag-hotfix {
-	background-color: #b60205;
-	color: white;
-}
-
-.tag-override {
-	background-color: #6f42c1;
-	color: white;
-}
-
-.tag-oldci {
-	background-color: #fef2c0;
-	color: black;
-}
-
-.tag-dismissed {
-	background-color: #ff69b4;
-	color: black;
-}
-
-.tag-dnm {
-	background-color: #b60205;
-	color: white;
-}
-
-.mergeable-button {
-	padding: 8px 16px;
-	background-color: #269926;
-	color: white;
+.open-ready-button {
+	padding: 6px 14px;
+	background: var(--ok);
+	color: var(--bg);
 	border: none;
-	border-radius: 4px;
+	border-radius: 6px;
+	font-size: 13px;
+	font-weight: 600;
 	cursor: pointer;
-	font-size: 14px;
-	transition: background-color 0.2s;
+}
+.open-ready-button:hover { filter: brightness(1.15); }
+
+/* ---- Help dialog -------------------------------------------------------- */
+
+/* Slightly larger text than the page: the dialog is meant to be read. */
+dialog.help {
+	margin: auto;
+	max-width: 720px;
+	width: calc(100vw - 48px);
+	padding: 0;
+	background: var(--panel);
+	color: var(--fg);
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+	font-size: 15px;
+	line-height: 1.55;
+}
+dialog.help::backdrop { background: rgba(0, 0, 0, 0.5); }
+
+/* The padding lives on the body so clicks on the dialog element itself
+ * can only come from the backdrop (see setupHelpDialog). */
+.help-body { padding: 20px 28px 24px; }
+
+.help-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+.help-header h3 {
+	margin: 0;
+	font-size: 19px;
 }
 
-.mergeable-button:hover {
-	background-color: #1e7a1e;
+.help-close {
+	padding: 2px 8px;
+	background: none;
+	color: var(--muted);
+	border: none;
+	font-size: 16px;
+	cursor: pointer;
 }
+.help-close:hover { color: var(--fg); }
 
-@media (prefers-color-scheme: dark) {
-	.mergeable-button {
-		background-color: #40ff40;
-		color: #000000;
-	}
-
-	.mergeable-button:hover {
-		background-color: #33cc33;
-	}
+.help h4 {
+	margin: 16px 0 4px;
 }
+.help td, .help th { padding: 2px 10px 2px 0; text-align: left; vertical-align: top; }
+.help a { color: var(--accent); }
+
+.phase { margin: 16px 0 0; font-size: 13px; }
+footer { margin-top: 20px; color: var(--muted); font-size: 12px; }
+footer img { vertical-align: middle; }
+
 </style>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
 
-<script type="text/javascript">
-	addEventListener("load", (event) => {
-		const url = "https://raw.githubusercontent.com/wiki/zephyrproject-rtos/zephyr/Merge-List-MOTD.md";
-		fetch(url)
-			.then((response) => {
-				if (!response.ok) {
-					throw new Error("HTTP error: " + response.status);
-				}
-				return response.text();
-			})
-			.then((text) => {
-				console.log("motd: " + text);
+<script>
+"use strict";
 
-				if (text == "empty") {
-					return;
-				}
-
-				const motd_table = document.getElementById("motd-table");
-				const motd_text = document.getElementById("motd-text");
-				motd_text.textContent = text;
-				motd_table.hidden = false;
-			});
-	});
-</script>
-
-<script type="text/javascript">
-	addEventListener("load", (event) => {
-		var checkbox = document.getElementById("autoRefreshCheckbox");
-		var value = localStorage.getItem("autoRefresh");
-		if (value == "true") {
-			checkbox.checked = true;
-		}
-
-		convertTimestampToRelative();
-	});
-
-	function convertTimestampToRelative() {
-		const timestampElement = document.getElementById("update-timestamp");
-		const momentTime = moment(timestampElement.textContent);
-		const headerElement = document.getElementById("last-update-header");
-
-		timestampElement.textContent = momentTime.fromNow();
-		timestampElement.title = momentTime.toString();
-		headerElement.style.visibility = "visible";
-	}
-
-	function refreshSave() {
-		var checkbox = document.getElementById("autoRefreshCheckbox");
-		localStorage.setItem("autoRefresh", checkbox.checked);
-	}
-
-	setInterval(function () {
-		if (document.getElementById("autoRefreshCheckbox").checked) {
-			location.reload();
-		}
-	}, 60000);
-
-	function openMergeablePRs() {
-		const prTable = document.getElementById("author");
-		const mergeableRows = prTable.querySelectorAll("tr.mergeable");
-
-		let openedCount = 0;
-		mergeableRows.forEach(row => {
-			// Get the PR URL from the first cell
-			const prLink = row.cells[0].querySelector('a');
-			if (prLink) {
-				window.open(prLink.href, '_blank');
-				openedCount++;
+/* Message of the day: maintained on the Zephyr wiki, shown when not "empty". */
+function loadMotd() {
+	const url = "https://raw.githubusercontent.com/wiki/zephyrproject-rtos/zephyr/Merge-List-MOTD.md";
+	fetch(url)
+		.then((response) => {
+			if (!response.ok) {
+				throw new Error("HTTP error: " + response.status);
 			}
-		});
+			return response.text();
+		})
+		.then((text) => {
+			if (text.trim() == "empty") {
+				return;
+			}
+			const banner = document.getElementById("motd");
+			banner.textContent = text;
+			banner.hidden = false;
+		})
+		.catch((error) => console.log("motd: " + error));
+}
 
-		if (openedCount === 0) {
-			alert("No mergeable PRs found (PRs need to target 'main' and have three green checkmarks)");
-		}
+/* Show "12 minutes ago" instead of a raw ISO timestamp. */
+const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+
+function renderUpdateTime() {
+	const el = document.getElementById("update-timestamp");
+	const then = Date.parse(el.getAttribute("datetime"));
+	if (isNaN(then)) {
+		return;
 	}
+	const seconds = Math.round((then - Date.now()) / 1000);
+
+	const minutes = Math.abs(seconds) / 60;
+	el.classList.toggle("stale", minutes >= 40 && minutes < 60);
+	el.classList.toggle("very-stale", minutes >= 60);
+
+	let text;
+	if (Math.abs(seconds) < 60) {
+		text = rtf.format(seconds, "second");
+	} else if (Math.abs(seconds) < 3600) {
+		text = rtf.format(Math.round(seconds / 60), "minute");
+	} else if (Math.abs(seconds) < 86400) {
+		text = rtf.format(Math.round(seconds / 3600), "hour");
+	} else {
+		text = rtf.format(Math.round(seconds / 86400), "day");
+	}
+	el.textContent = text;
+	el.title = new Date(then).toString();
+}
+
+/* Auto-refresh: poll with a HEAD request once a minute and reload only
+ * when the page validators say a new version was actually published,
+ * so nothing on screen ever moves for nothing. */
+function setupAutoRefresh() {
+	let current = null;
+
+	function check() {
+		fetch(location.href, { method: "HEAD", cache: "no-store" })
+			.then((response) => {
+				const version = response.headers.get("ETag") ||
+					response.headers.get("Last-Modified");
+				if (current && version && version != current) {
+					location.reload();
+				}
+				current = version || current;
+			})
+			.catch((error) => console.log("auto-refresh: " + error));
+	}
+
+	check();
+	setInterval(check, 60000);
+}
+
+/* Open every ready PR in the table that targets main,
+ * each in its own tab. Most browsers allow a single popup per click
+ * and silently block the rest (window.open returns null), so count
+ * the casualties and tell the user how to lift the limit instead of
+ * failing mysteriously. */
+function openReadyPRs() {
+	const rows = [...document.querySelectorAll(
+		'#pr-table tbody tr[data-status="ready"][data-base="main"]')];
+
+	if (rows.length == 0) {
+		alert("No ready PRs targeting main.");
+		return;
+	}
+	const blocked = rows.filter((row) => {
+		const link = row.querySelector("a");
+		return link && window.open(link.href, "_blank") == null;
+	}).length;
+
+	if (blocked > 0) {
+		alert(`The browser blocked ${blocked} of ${rows.length} tabs. ` +
+			"Allow pop-ups for this site (look for the blocked pop-up " +
+			"icon in the address bar) to open all ready PRs at once.");
+	}
+}
+
+/* Close the help dialog when the backdrop is clicked; Esc already works
+ * natively. Clicks inside the content land on .help-body, not here. */
+function setupHelpDialog() {
+	const dialog = document.getElementById("help-dialog");
+	dialog.addEventListener("click", (event) => {
+		if (event.target == dialog) {
+			dialog.close();
+		}
+	});
+}
+
+addEventListener("DOMContentLoaded", () => {
+	lucide.createIcons();
+	loadMotd();
+	renderUpdateTime();
+	setInterval(renderUpdateTime, 1000);
+	setupAutoRefresh();
+	setupHelpDialog();
+});
 </script>
 
 </head>
 
 <body>
 
-<h1>Merge list</h1>
+<div class="page-header">
+	<h1>Zephyr merge list</h1>
+	<p class="subtitle">Open pull requests that are approved, pass CI, and are
+	in line to be merged into
+	<a href="https://github.com/zephyrproject-rtos/zephyr">zephyrproject-rtos/zephyr</a>.
+	<button class="help-link"
+		onclick="document.getElementById('help-dialog').showModal()">How this list
+		works</button></p>
+</div>
 
-<h3 id="last-update-header" style="visibility: hidden;">
-  Last update: <span id="update-timestamp">UPDATE_TIMESTAMP</span>
-</h3>
-<h3>CI: CI_STATUS</h3>
+<dialog class="help" id="help-dialog" aria-labelledby="help-title">
+	<div class="help-body">
+	<div class="help-header">
+		<h3 id="help-title">How this list works</h3>
+		<button class="help-close" aria-label="Close"
+			onclick="document.getElementById('help-dialog').close()">&#10005;</button>
+	</div>
 
-<table class="motd" id="motd-table" hidden>
-  <tr><td id="motd-text"></td></tr>
-</table>
+	<h4>Which PRs show up here?</h4>
+	<p>Every open, non-draft pull request that is approved by reviewers and
+	passing CI. Code review is done: this page tracks the final wait for a
+	release engineer to apply the project's
+	<a href="https://docs.zephyrproject.org/latest/project/release_process.html#pull-request-merge-criteria">merge criteria</a>.</p>
 
-<table class="prs" id="author">
-  <tr>
-    <th>#</th>
-    <th>Title</th>
-    <th>Tags</th>
-    <th>Author</th>
-    <th>Assignee</th>
-    <th>Approvers</th>
-    <th>Base</th>
-    <th>Milestone</th>
-    <th title="Mergeable">&#8624;</th>
-    <th title="Approved">&check;</th>
-    <th title="Review time">&#9202;</th>
-  </tr>
+	<h4>The three merge gates</h4>
+	<p>A PR is merged once all three pass:</p>
+	<ol>
+		<li><b>Conflict-free</b>: the PR applies cleanly on its target branch,
+		no rebase needed.</li>
+		<li><b>Assignee approval</b>: the assigned maintainer approved the PR.
+		Auto-passes for hotfixes, unassigned PRs, and authors who are their own
+		assignee.</li>
+		<li><b>Review time</b>: {{REVIEW_WINDOW_BIZ_HOURS}} business hours since
+		the PR became ready for review, so everyone gets a chance to comment.
+		{{REVIEW_WINDOW_TRIVIAL_HOURS}} hours for <i>trivial</i> PRs, none for
+		<i>hotfixes</i>.</li>
+	</ol>
+	<p>The <b>Ready to merge?</b> column shows the three gates from left to
+	right: merge status, assignee approval, and review time. Green icons mean
+	passed, red icons mean action is needed, and the clock counts down the
+	hours left. A row whose three icons are all green is tinted green and
+	ready to merge &mdash; it will be picked up in the next merge round.</p>
+
+	<h4><a href="https://docs.zephyrproject.org/latest/project/dev_env_and_tools.html#labeling-issues-and-pull-requests-in-github">Labels</a></h4>
+	<table>
+		<tr><td><span class="tag tag-hotfix">hotfix</span></td>
+			<td>Fixes a broken main branch; merged immediately.</td></tr>
+		<tr><td><span class="tag tag-trivial">trivial</span></td>
+			<td>Small, low-risk change; the review window is {{REVIEW_WINDOW_TRIVIAL_HOURS}} hours instead of {{REVIEW_WINDOW_BIZ_HOURS}} business hours.</td></tr>
+		<tr><td><span class="tag tag-override">override required</span></td>
+			<td>A release engineer must override a failing or stuck required check to merge.</td></tr>
+		<tr><td><span class="tag tag-oldci">ci 42d</span></td>
+			<td>The last full CI run is that many days old; CI should be re-run before merging.</td></tr>
+		<tr><td><span class="tag tag-dismissed">review dismissed</span></td>
+			<td>A &ldquo;changes requested&rdquo; review was dismissed by someone else; merits a second look.</td></tr>
+		<tr><td><span class="tag tag-dnm">dnm</span></td>
+			<td>Do not merge.</td></tr>
+	</table>
+
+	<h4>Release phase</h4>
+	<p>During <b>integration</b>, features and fixes merge normally. During
+	<a href="https://docs.zephyrproject.org/latest/project/release_process.html#feature-freeze-stabilization-phase">feature
+	freeze</a>, only bug fixes and release-blocking work are merged, and PRs
+	milestoned for the next release wait.</p>
+	</div>
+</dialog>
+
+<div class="motd" id="motd" role="alert" hidden></div>
+
+<div class="metabar">
+	<span><span class="meta-label">Updated</span><time id="update-timestamp" datetime="{{UPDATE_TIMESTAMP}}">{{UPDATE_TIMESTAMP}}</time></span>
+	<span class="meta-sep">|</span>
+	<span><span class="meta-label">CI on main:</span><span class="ci-badges">{{CI_STATUS}}</span></span>
+</div>
+
+<div class="table-wrap">
+<table class="prs" id="pr-table">
+	<thead>
+	<tr>
+		<th title="Pull request number">PR</th>
+		<th title="Pull request title and labels">Title</th>
+		<th title="Who opened the PR">Author</th>
+		<th title="Maintainers assigned to shepherd the PR">Assignees</th>
+		<th title="Reviewers whose approval currently stands">Approvers</th>
+		<th title="Branch the PR will be merged into">Target</th>
+		<th title="Release milestone, if set">Milestone</th>
+		<th class="gate-col" title="Ready to merge? Left to right: conflict-free, assignee approval, review time">Ready to merge?</th>
+	</tr>
+	</thead>
+	<tbody>

@@ -11,13 +11,13 @@
 <link rel="stylesheet" href="https://cdn.datatables.net/fixedheader/4.0.6/css/fixedHeader.dataTables.min.css">
 
 <style>
-/* Theme: every color lives in a variable so light and dark stay in sync. */
 :root {
 	--bg: #f6f7f9;
 	--panel: #ffffff;
 	--fg: #1d2531;
 	--muted: #5d6b83;
 	--border: #dce2eb;
+	--row-divider: #c3ccd9;
 	--accent: #6e37c8;
 	--ok: #1a7f37;
 	--ok-bg: #def0e3;
@@ -26,22 +26,22 @@
 	--bad: #b42323;
 	--bad-bg: #fbe2e2;
 	--neutral-bg: #e8ecf2;
-	--stripe: #eef1f6;          /* even-row zebra band */
-	--row-ready: #e4f6ea;       /* ready rows, overrides the zebra band */
+	--stripe: #eef1f6;
+	--row-ready: #e4f6ea;
+	--row-ready-hover: #d3efdc;
 	--row-hover: #e2e8f2;
 	--header-bg: #333f67;
 	--header-fg: #ffffff;
+	--pad: 24px;
 }
 @media (prefers-color-scheme: dark) {
 	:root {
-		/* Lifted off pure black: the page, the panel and the zebra band sit
-		 * on distinct, clearly separated steps so nothing reads as
-		 * "dark on dark". */
 		--bg: #10151d;
 		--panel: #1e2735;
 		--fg: #e8ecf4;
 		--muted: #a3b0c6;
 		--border: #38445a;
+		--row-divider: #50617b;
 		--accent: #b48cf5;
 		--ok: #56d47b;
 		--ok-bg: #1c3a28;
@@ -50,8 +50,9 @@
 		--bad: #f77f7f;
 		--bad-bg: #45201f;
 		--neutral-bg: #2b3547;
-		--stripe: #262f40;          /* even-row zebra band, a step above panel */
-		--row-ready: #204a30;       /* clearly green, not near-black */
+		--stripe: #262f40;
+		--row-ready: #204a30;
+		--row-ready-hover: #2b5c3e;
 		--row-hover: #313d52;
 		--header-bg: #2c3759;
 		--header-fg: #e9eef9;
@@ -60,9 +61,6 @@
 
 * { box-sizing: border-box; }
 html { overscroll-behavior-y: none; }
-
-/* Use normal document scrolling. Responsive keeps the table within the
- * viewport, while FixedHeader follows the window scroll. */
 body {
 	margin: 0;
 	padding: 0 var(--pad) 16px;
@@ -72,29 +70,41 @@ body {
 	font-size: 14px;
 	line-height: 1.4;
 }
+a { color: inherit; text-decoration: none; }
+a:hover { text-decoration: underline; }
 
-:root { --pad: 24px; }
-
-.page-header { padding-top: 12px; }
-
-/* Keep the side padding from eating the narrow screens. */
 @media (max-width: 640px) {
 	:root { --pad: 12px; }
 	body { padding-bottom: 12px; }
 	.page-header { padding-top: 8px; }
+	/* Shrink a notch so the author column fits alongside PR, title, gate. */
+	.prs { font-size: 0.9em; }
+	/* The icons carry the meaning; drop the heading text to save width. */
+	.prs thead th.gate-col,
+	table.dataTable.prs > thead > tr > th.gate-col { font-size: 0; }
+	/* Author is the only handle column on phones; keep it off the title. */
+	.prs td.author a {
+		display: inline-block;
+		max-width: 7em;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		vertical-align: bottom;
+	}
 }
-
-a { color: inherit; text-decoration: none; }
-a:hover { text-decoration: underline; }
 
 /* ---- Page header ------------------------------------------------------ */
 
-.page-header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.page-header {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	flex-wrap: wrap;
+	padding-top: 12px;
+}
 .page-header h1 { margin: 4px 0 0; font-size: 21px; }
 .page-header .subtitle { color: var(--muted); margin: 0; }
 
-/* The help is a quiet inline link, not a standalone button, so it costs
- * no vertical space of its own. */
 .help-link {
 	padding: 0;
 	background: none;
@@ -109,8 +119,6 @@ a:hover { text-decoration: underline; }
 
 /* ---- Summary bar ------------------------------------------------------- */
 
-/* One compact line instead of a panel of cards: the same four facts
- * (ready count, CI on main, release phase, last update) laid out inline. */
 .metabar {
 	display: flex;
 	align-items: center;
@@ -123,17 +131,12 @@ a:hover { text-decoration: underline; }
 	border-radius: 8px;
 	font-size: 13px;
 }
-.metabar .meta-label {
-	color: var(--muted);
-	font-weight: 600;
-	margin-right: 4px;
-}
+.metabar .meta-label { color: var(--muted); font-weight: 600; margin-right: 4px; }
 .metabar .meta-sep { color: var(--border); }
 #update-timestamp.stale { color: var(--warn); font-weight: 600; }
 #update-timestamp.very-stale { color: var(--bad); font-weight: 600; }
 
 .ci-badges { display: inline-flex; flex-wrap: wrap; gap: 6px; vertical-align: middle; }
-
 .ci-badge {
 	display: inline-block;
 	padding: 1px 8px;
@@ -142,12 +145,7 @@ a:hover { text-decoration: underline; }
 	background: var(--neutral-bg);
 	white-space: nowrap;
 }
-.ci-badge .lucide {
-	width: 1em;
-	height: 1em;
-	margin-right: 4px;
-	vertical-align: -0.15em;
-}
+.ci-badge .lucide { width: 1em; height: 1em; margin-right: 4px; vertical-align: -0.15em; }
 .ci-pass { background: var(--ok-bg); color: var(--ok); }
 .ci-fail { background: var(--bad-bg); color: var(--bad); }
 .ci-cancelled { background: var(--warn-bg); color: var(--warn); }
@@ -171,14 +169,12 @@ a:hover { text-decoration: underline; }
 
 /* ---- Filter controls ---------------------------------------------------- */
 
-/* The title and summary bar scroll away with the list. The filters stay at
- * the top of the window; FixedHeader positions the table headings below. */
+/* Sticky filter bar; FixedHeader positions the table headings just below. */
 .controls {
 	display: flex;
 	align-items: center;
 	gap: 12px;
 	flex-wrap: wrap;
-	/* Full-bleed to the viewport edges while preserving aligned content. */
 	margin: 0 calc(-1 * var(--pad));
 	padding: 10px var(--pad);
 	position: sticky;
@@ -199,6 +195,8 @@ a:hover { text-decoration: underline; }
 #pr-search:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chips-label { color: var(--muted); font-size: 13px; align-self: center; }
+#target-chips { border-left: 1px solid var(--border); padding-left: 12px; }
 
 .chip {
 	padding: 4px 12px;
@@ -211,97 +209,106 @@ a:hover { text-decoration: underline; }
 	cursor: pointer;
 }
 .chip:hover { border-color: var(--accent); }
-.chip.active {
-	background: var(--accent);
-	border-color: var(--accent);
-	color: var(--bg);
-}
+.chip.active { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 .chip .count { font-weight: 400; opacity: 0.8; }
-
-/* The target group is set apart from the status chips by a divider. */
-#target-chips { border-left: 1px solid var(--border); padding-left: 12px; }
-.chips-label { color: var(--muted); font-size: 13px; align-self: center; }
 
 /* ---- Table ------------------------------------------------------------- */
 
 .table-wrap {
 	background: var(--panel);
 	border: 1px solid var(--border);
-	border-radius: 8px;
-	/* Let the dense table use the full viewport while keeping its content
-	 * aligned with the rest of the page through first/last-cell padding. */
-	margin: 0 calc(-1 * var(--pad));
+	border-radius: 0 0 8px 8px;
 }
 
 .prs { border-collapse: collapse; width: 100%; }
+table.dataTable.prs { margin: 0 !important; width: 100% !important; border-collapse: collapse; }
 
-.prs th, .prs td {
+/* Base cells plus the matching DataTables overrides, so pre- and post-init look identical. */
+.prs th, .prs td,
+table.dataTable.prs > thead > tr > th,
+table.dataTable.prs > tbody > tr > td {
 	padding: 3px 10px;
-	border-bottom: 1px solid var(--border);
+	border-bottom: 1px solid var(--row-divider);
 	text-align: left;
 	vertical-align: top;
 }
-.prs th:first-child, .prs td:first-child { padding-left: var(--pad); }
-.prs th:last-child, .prs td:last-child { padding-right: var(--pad); }
-
-.prs thead th {
+.prs thead th,
+table.dataTable.prs > thead > tr > th {
+	padding-top: 6px;
+	padding-bottom: 6px;
 	background: var(--header-bg);
 	color: var(--header-fg);
 	font-size: 12px;
 	white-space: nowrap;
 	cursor: help;
-	padding-top: 6px;
-	padding-bottom: 6px;
 	border-bottom: none;
 	box-shadow: inset 0 -1px 0 var(--border);
 }
-
 .prs tbody tr:last-child td { border-bottom: none; }
 
-/* Row backgrounds, in increasing order of precedence (later rules win at
- * equal specificity):
- *   1. zebra banding on even rows for readability across wide rows;
- *   2. ready rows are tinted green regardless of parity (this, plus the
- *      three green gate icons, is how "ready" reads now the status column
- *      is gone);
- *   3. hover always wins.
- * Which branch a PR targets is left to the Target column and its filter,
- * so no extra per-row shading competes with the banding. */
+table.dataTable.prs > thead > tr > th.dt-orderable-asc,
+table.dataTable.prs > thead > tr > th.dt-orderable-desc {
+	padding-right: 18px;
+	cursor: pointer;
+	user-select: none;
+}
+table.dataTable.prs > tbody > tr > td.dt-type-numeric { text-align: left; }
+
+/* Row expand/collapse triangle in the text colour (its faint-black default is
+ * invisible on the dark theme, which only ships a Bootstrap-class override). */
+table.dataTable.prs > tbody > tr:not(.dtr-expanded) > td.dtr-control::before { border-left-color: currentColor !important; }
+table.dataTable.prs > tbody > tr.dtr-expanded > td.dtr-control::before { border-top-color: currentColor !important; }
+
+.prs td.num, .prs td.gate { white-space: nowrap; }
+.prs td.title { overflow-wrap: anywhere; }
+/* Wrap the assignee/approver names into a bounded column instead of one long line. */
+.prs td.people .handles {
+	display: inline-block;
+	max-width: 12em;
+	overflow-wrap: anywhere;
+}
+/* Wide screens have the room, so let the lists spread rather than wrap. */
+@media (min-width: 1300px) {
+	.prs td.people .handles { max-width: 24em; }
+}
+/* Precedence: stripe < ready < hover (later rules win at equal specificity). */
 .prs tbody tr.stripe { background: var(--stripe); }
 .prs tbody tr[data-status="ready"] { background: var(--row-ready); }
 .prs tbody tr:hover { background: var(--row-hover); }
-
-.prs td.num, .prs td.gate { white-space: nowrap; }
-.prs td.gate { text-align: center; }
-.prs th.gate-col { text-align: center; }
+.prs tbody tr[data-status="ready"]:hover { background: var(--row-ready-hover); }
 
 .gate-icons {
 	display: inline-grid;
-	grid-template-columns: 18px 18px 52px;
+	grid-template-columns: 18px 18px auto;
 	align-items: center;
-	justify-items: center;
+	justify-items: start;
 	column-gap: 4px;
 	vertical-align: middle;
 }
-.gate-icon {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 3px;
-}
-.gate-icon .lucide {
-	width: 16px;
-	height: 16px;
-	flex: none;
-}
-.gate-review { justify-self: start; }
+.gate-icon { display: inline-flex; align-items: center; justify-content: center; gap: 3px; }
+.gate-icon .lucide { width: 16px; height: 16px; flex: none; }
 
-.gate-pass { color: var(--ok); font-weight: 600; }
-.gate-fail { color: var(--bad); font-weight: 600; }
-.gate-wait { color: var(--warn); font-weight: 600; white-space: nowrap; }
+/* Hours-left as a small exponent riding the clock icon. */
+.gate-num {
+	margin-left: -2px;
+	align-self: flex-start;
+	line-height: 1;
+	font-size: 0.8em;
+	font-weight: 300;
+}
+
+.gate-pass, .gate-fail, .gate-wait { font-weight: 600; }
+.gate-pass { color: var(--ok); }
+.gate-fail { color: var(--bad); }
+.gate-wait { color: var(--warn); white-space: nowrap; }
 .gate-unknown { color: var(--muted); }
 
 .muted { color: var(--muted); }
+
+.table-wrap .dt-container .dt-layout-row { margin: 0; }
+.table-wrap .dt-container .dt-layout-cell { padding: 0; }
+table.dataTable.prs > tbody > tr.child ul.dtr-details > li { border-bottom-color: var(--border); }
+table.dataTable.prs > tbody > tr > td.dt-empty { padding: 16px; color: var(--muted); text-align: center; }
 
 /* ---- Label tags (shown next to PR titles) ------------------------------ */
 
@@ -323,13 +330,7 @@ a:hover { text-decoration: underline; }
 
 /* ---- Footer / misc ----------------------------------------------------- */
 
-.toolbar {
-	display: flex;
-	align-items: center;
-	gap: 16px;
-	flex-wrap: wrap;
-	margin: 12px 0;
-}
+.toolbar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 12px 0; }
 
 .open-ready-button {
 	padding: 6px 14px;
@@ -343,9 +344,12 @@ a:hover { text-decoration: underline; }
 }
 .open-ready-button:hover { filter: brightness(1.15); }
 
+.phase { margin: 16px 0 0; font-size: 13px; }
+footer { margin-top: 20px; color: var(--muted); font-size: 12px; }
+footer img { vertical-align: middle; }
+
 /* ---- Help dialog -------------------------------------------------------- */
 
-/* Slightly larger text than the page: the dialog is meant to be read. */
 dialog.help {
 	margin: auto;
 	max-width: 720px;
@@ -361,20 +365,24 @@ dialog.help {
 }
 dialog.help::backdrop { background: rgba(0, 0, 0, 0.5); }
 
-/* The padding lives on the body so clicks on the dialog element itself
- * can only come from the backdrop (see setupHelpDialog). */
+/* Padding on the body so backdrop clicks land on the dialog itself (see setupHelpDialog). */
 .help-body { padding: 20px 28px 24px; }
 
 .help-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	padding-bottom: 10px;
+	border-bottom: 1px solid var(--border);
 }
 .help-header h3 {
 	margin: 0;
-	font-size: 19px;
+	padding-left: 10px;
+	border-left: 3px solid var(--accent);
+	font-size: 18px;
+	line-height: 1.25;
+	letter-spacing: 0.01em;
 }
-
 .help-close {
 	padding: 2px 8px;
 	background: none;
@@ -386,69 +394,31 @@ dialog.help::backdrop { background: rgba(0, 0, 0, 0.5); }
 .help-close:hover { color: var(--fg); }
 
 .help h4 {
-	margin: 16px 0 4px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 16px 0 5px;
+	font-size: 1em;
+	line-height: 1.35;
+	letter-spacing: 0.015em;
 }
-.help td, .help th { padding: 2px 10px 2px 0; text-align: left; vertical-align: top; }
+.help h4::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	flex: 0 0 6px;
+	border-radius: 50%;
+	background: var(--accent);
+}
+.help h4 a { color: inherit; }
 .help a { color: var(--accent); }
+.help td, .help th { padding: 2px 10px 2px 0; text-align: left; vertical-align: top; }
 
-.phase { margin: 16px 0 0; font-size: 13px; }
-footer { margin-top: 20px; color: var(--muted); font-size: 12px; }
-footer img { vertical-align: middle; }
-
-/* Keep DataTables inside the redesigned table panel. Its behavior is useful;
- * its surrounding layout and cell spacing should stay invisible. */
-.table-wrap .dt-container .dt-layout-row { margin: 0; }
-.table-wrap .dt-container .dt-layout-cell { padding: 0; }
-
-table.dataTable.prs {
-	margin: 0 !important;
-	width: 100% !important;
-	border-collapse: collapse;
-}
-
-table.dataTable.prs > thead > tr > th,
-table.dataTable.prs > tbody > tr > td {
-	padding: 3px 10px;
-	border-bottom: 1px solid var(--border);
-}
-
-table.dataTable.prs > thead > tr > th:first-child,
-table.dataTable.prs > tbody > tr > td:first-child {
-	padding-left: var(--pad);
-}
-table.dataTable.prs > thead > tr > th:last-child,
-table.dataTable.prs > tbody > tr > td:last-child {
-	padding-right: var(--pad);
-}
-
-table.dataTable.prs > thead > tr > th {
-	padding-top: 6px;
-	padding-bottom: 6px;
-	background: var(--header-bg);
-	color: var(--header-fg);
-	border-bottom: none;
-	box-shadow: inset 0 -1px 0 var(--border);
-}
-
-table.dataTable.prs > thead > tr > th.dt-orderable-asc,
-table.dataTable.prs > thead > tr > th.dt-orderable-desc {
-	padding-right: 30px;
-	cursor: pointer;
-	user-select: none;
-}
-
-table.dataTable.prs > tbody > tr > td.dt-type-numeric { text-align: left; }
-table.dataTable.prs > tbody > tr > td.gate,
-table.dataTable.prs > thead > tr > th.gate-col { text-align: center; }
-
-table.dataTable.prs > tbody > tr.child ul.dtr-details > li {
-	border-bottom-color: var(--border);
-}
-table.dataTable.prs > tbody > tr > td.dt-empty {
-	padding: 16px;
-	color: var(--muted);
-	text-align: center;
-}
+.help-gates { display: grid; gap: 5px; margin: 6px 0; padding: 0; list-style: none; }
+.help-gates li { display: grid; grid-template-columns: 20px 1fr; gap: 7px; align-items: start; }
+.help-gates .gate-icon { margin-top: 0.2em; }
+.help-gate-note { display: flex; align-items: center; gap: 7px; }
+.help-gate-note .gate-icon { flex: none; }
 </style>
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -655,6 +625,8 @@ function setupDataTable() {
 	prTable = new DataTable("#pr-table", {
 		paging: false,
 		info: false,
+		/* Let the stylesheet own column widths (see the .prs caps above). */
+		autoWidth: false,
 		order: [],
 		orderClasses: false,
 		stateSave: true,
@@ -694,16 +666,18 @@ function setupDataTable() {
 			data.order = [];
 			data.statusFilter = status;
 		},
+		/* Narrow screens keep title, readiness, PR and author; the target,
+		 * assignee, approver and milestone columns drop first. */
 		columnDefs: [
-			{targets: 0, type: "html-num", responsivePriority: 2},
 			{targets: 1, responsivePriority: 1},
 			{
 				targets: 7,
 				orderable: false,
-				responsivePriority: 3,
+				responsivePriority: 2,
 			},
-			{targets: 5, responsivePriority: 4},
-			{targets: [2, 3, 4, 6], responsivePriority: 10},
+			{targets: 0, type: "html-num", responsivePriority: 3},
+			{targets: 2, responsivePriority: 4},
+			{targets: [3, 4, 5, 6], responsivePriority: 10},
 		],
 		drawCallback: function () {
 			const table = this.api();
@@ -742,14 +716,23 @@ function setupDataTable() {
 
 	prTable.draw();
 
-	/* The filters wrap on narrow screens, so keep FixedHeader's offset in
-	 * sync with their measured height. */
 	const updateHeaderOffset = () =>
 		prTable.fixedHeader.headerOffset(fixedHeaderOffset());
+
+	/* autoWidth is off, so re-fit columns and responsive visibility ourselves. */
+	let relayoutPending;
+	addEventListener("resize", () => {
+		clearTimeout(relayoutPending);
+		relayoutPending = setTimeout(() => {
+			prTable.columns.adjust();
+			prTable.responsive.recalc();
+			updateHeaderOffset();
+		}, 100);
+	});
+
+	/* Track the filter bar's height (it wraps) to keep FixedHeader's offset right. */
 	if (window.ResizeObserver) {
 		new ResizeObserver(updateHeaderOffset).observe(controls);
-	} else {
-		addEventListener("resize", updateHeaderOffset);
 	}
 }
 
@@ -803,26 +786,42 @@ addEventListener("DOMContentLoaded", () => {
 	release engineer to apply the project's
 	<a href="https://docs.zephyrproject.org/latest/project/release_process.html#pull-request-merge-criteria">merge criteria</a>.</p>
 
-	<h4>The three merge gates</h4>
-	<p>A PR is merged once all three pass:</p>
-	<ol>
-		<li><b>Conflict-free</b>: the PR applies cleanly on its target branch,
-		no rebase needed.</li>
-		<li><b>Assignee approval</b>: the assigned maintainer approved the PR.
-		Auto-passes for hotfixes, unassigned PRs, and authors who are their own
-		assignee.</li>
-		<li><b>Review time</b>: {{REVIEW_WINDOW_BIZ_HOURS}} business hours since
-		the PR became ready for review, so everyone gets a chance to comment.
-		{{REVIEW_WINDOW_TRIVIAL_HOURS}} hours for <i>trivial</i> PRs, none for
-		<i>hotfixes</i>.</li>
-	</ol>
-	<p>The <b>Ready to merge?</b> column shows the three gates from left to
-	right: merge status, assignee approval, and review time. Green icons mean
-	passed, red icons mean action is needed, and the clock counts down the
-	hours left. A row whose three icons are all green is tinted green and
-	ready to merge &mdash; it will be picked up in the next merge round. Use
-	the <b>Ready</b> / <b>Waiting</b> / <b>Blocked</b> chips above the table to
-	filter.</p>
+	<h4>When is a PR ready to merge?</h4>
+	<p>When all three icons in <b>Ready to merge?</b> are green:</p>
+	<ul class="help-gates">
+		<li><span class="gate-icon gate-conflict gate-pass" aria-hidden="true"><i
+			data-lucide="git-merge"></i></span>
+			<span><b>Conflict-free</b> &mdash; applies cleanly.</span></li>
+		<li><span class="gate-icon gate-approval gate-pass" aria-hidden="true"><i
+			data-lucide="user-round-check"></i></span>
+			<span><b>Assignee approved</b> &mdash; automatic for hotfixes,
+			unassigned PRs, and self-assignees.</span></li>
+		<li><span class="gate-icon gate-review gate-pass" aria-hidden="true"><i
+			data-lucide="clock-check"></i></span>
+			<span><b>Review window elapsed</b> &mdash;
+			{{REVIEW_WINDOW_BIZ_HOURS}} business hours,
+			{{REVIEW_WINDOW_TRIVIAL_HOURS}} for trivial PRs, none for
+			hotfixes.</span></li>
+	</ul>
+	<p><b>Red means action is needed:</b></p>
+	<ul class="help-gates">
+		<li><span class="gate-icon gate-conflict gate-fail" aria-hidden="true"><i
+			data-lucide="git-merge-conflict"></i></span>
+			<span><b>Merge conflict</b> &mdash; rebase the PR branch onto the
+			latest target branch and resolve any conflicts.</span></li>
+		<li><span class="gate-icon gate-approval gate-fail" aria-hidden="true"><i
+			data-lucide="user-round-x"></i></span>
+			<span><b>Approval missing</b> &mdash; at least one assignee must
+			approve.</span></li>
+	</ul>
+	<p class="help-gate-note"><span class="gate-icon gate-review gate-wait"
+		aria-hidden="true"><i data-lucide="clock-3"></i></span>
+		<span>A yellow clock shows the hours remaining
+		in the review window.</span></p>
+
+	<h4>My PR has three green icons. Why hasn&rsquo;t it been merged?</h4>
+	<p>Release engineers process ready PRs several times a day, so it will
+	probably be merged within a few hours.</p>
 
 	<h4><a href="https://docs.zephyrproject.org/latest/project/dev_env_and_tools.html#labeling-issues-and-pull-requests-in-github">Labels</a></h4>
 	<table>

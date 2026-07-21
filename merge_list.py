@@ -15,8 +15,6 @@ import sys
 import tabulate
 import gzip
 
-token = os.environ["GITHUB_TOKEN"]
-
 PER_PAGE = 100
 
 HTML_OUT = "public/index.html"
@@ -41,6 +39,9 @@ CI_RUN_MAX_AGE_DAYS = 31
 HOTFIX_LABEL = "Hotfix"
 TRIVIAL_LABEL = "Trivial"
 OVERRIDE_REQUIRED_LABEL = "Override Required"
+
+REVIEW_WINDOW_BIZ_HOURS = 48
+REVIEW_WINDOW_TRIVIAL_HOURS = 4
 
 
 @dataclass
@@ -179,9 +180,9 @@ def evaluate_criteria(repo, number, data):
     if hotfix:
         time_left = 0
     elif trivial:
-        time_left = 4 - delta_hours
+        time_left = REVIEW_WINDOW_TRIVIAL_HOURS - delta_hours
     else:
-        time_left = 48 - delta_biz_hours
+        time_left = REVIEW_WINDOW_BIZ_HOURS - delta_biz_hours
 
     set_ci_age_data(repo, data)
 
@@ -200,8 +201,19 @@ def evaluate_criteria(repo, number, data):
                   override_required, data.ci_run_recent, dismissed]
 
 
+def merge_status(data):
+    if data.rebaseable is False or not data.assignee:
+        return "blocked"
+    if not data.time:
+        return "waiting"
+    if data.rebaseable is None:
+        return "unknown"
+    return "ready"
+
+
 def table_entry(number, data):
     pr = data.pr
+    status = merge_status(data)
     url = pr.html_url
     title = html.escape(pr.title)
     author = html.escape(pr.user.login)
@@ -224,12 +236,7 @@ def table_entry(number, data):
     time = PASS if data.time else FAIL + f" {data.time_left}h left"
 
     # Determine if PR is mergeable (targets main and has three green checkmarks)
-    is_mergeable = (
-        base == "main" and
-        data.rebaseable and
-        data.assignee and
-        data.time
-    )
+    is_mergeable = base == "main" and status == "ready"
 
     if is_mergeable:
         tr_class = "mergeable"
@@ -254,7 +261,8 @@ def table_entry(number, data):
     tags_text = ' '.join(tags)
 
     return f"""
-        <tr class="{tr_class}">
+        <tr class="{tr_class}" data-status="{status}"
+            data-base="{html.escape(base, quote=True)}">
             <td><a href="{url}">{number}</a></td>
             <td><a href="{url}">{title}</a></td>
             <td>{tags_text}</td>
@@ -515,11 +523,15 @@ def main(argv):
         debug_data.append(data.debug)
     print(tabulate.tabulate(debug_data, headers=debug_headers))
 
-    data_out = []
-    for number, data in pr_data.items():
-        data_out.append(((data.assignee and data.time, number), data))
+    status_order = {"ready": 0, "waiting": 1, "unknown": 2, "blocked": 3}
 
-    for (_, number), data in sorted(data_out, key=lambda x: x[0], reverse=True):
+    def sort_key(item):
+        number, data = item
+        status = merge_status(data)
+        wait = data.time_left if status == "waiting" else 0
+        return (status_order[status], wait, -number)
+
+    for number, data in sorted(pr_data.items(), key=sort_key):
         html_out += table_entry(number, data)
 
     with open(HTML_POST) as f:

@@ -6,6 +6,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Zephyr merge list</title>
 
+<link rel="stylesheet" href="https://cdn.datatables.net/2.3.8/css/dataTables.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/3.0.8/css/responsive.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/fixedheader/4.0.6/css/fixedHeader.dataTables.min.css">
+
 <style>
 /* Theme: every color lives in a variable so light and dark stay in sync. */
 :root {
@@ -55,9 +59,10 @@
 }
 
 * { box-sizing: border-box; }
+html { overscroll-behavior-y: none; }
 
-/* Use normal document scrolling. The table is responsive, so it stays
- * within the viewport without a second scrolling region. */
+/* Use normal document scrolling. Responsive keeps the table within the
+ * viewport, while FixedHeader follows the window scroll. */
 body {
 	margin: 0;
 	padding: 0 var(--pad) 16px;
@@ -104,7 +109,8 @@ a:hover { text-decoration: underline; }
 
 /* ---- Summary bar ------------------------------------------------------- */
 
-/* Keep the update time and CI status together in one compact line. */
+/* One compact line instead of a panel of cards: the same four facts
+ * (ready count, CI on main, release phase, last update) laid out inline. */
 .metabar {
 	display: flex;
 	align-items: center;
@@ -163,6 +169,59 @@ a:hover { text-decoration: underline; }
 	margin: 12px 0;
 }
 
+/* ---- Filter controls ---------------------------------------------------- */
+
+/* The title and summary bar scroll away with the list. The filters stay at
+ * the top of the window; FixedHeader positions the table headings below. */
+.controls {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	/* Full-bleed to the viewport edges while preserving aligned content. */
+	margin: 0 calc(-1 * var(--pad));
+	padding: 10px var(--pad);
+	position: sticky;
+	top: 0;
+	z-index: 4;
+	background: var(--bg);
+}
+
+#pr-search {
+	padding: 6px 12px;
+	min-width: 280px;
+	background: var(--panel);
+	color: var(--fg);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	font-size: 13px;
+}
+#pr-search:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.chip {
+	padding: 4px 12px;
+	background: var(--panel);
+	color: var(--muted);
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+}
+.chip:hover { border-color: var(--accent); }
+.chip.active {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: var(--bg);
+}
+.chip .count { font-weight: 400; opacity: 0.8; }
+
+/* The target group is set apart from the status chips by a divider. */
+#target-chips { border-left: 1px solid var(--border); padding-left: 12px; }
+.chips-label { color: var(--muted); font-size: 13px; align-self: center; }
+
 /* ---- Table ------------------------------------------------------------- */
 
 .table-wrap {
@@ -186,9 +245,6 @@ a:hover { text-decoration: underline; }
 .prs th:last-child, .prs td:last-child { padding-right: var(--pad); }
 
 .prs thead th {
-	position: sticky;
-	top: 0;
-	z-index: 1;
 	background: var(--header-bg);
 	color: var(--header-fg);
 	font-size: 12px;
@@ -196,9 +252,6 @@ a:hover { text-decoration: underline; }
 	cursor: help;
 	padding-top: 6px;
 	padding-bottom: 6px;
-	/* Draw the header's bottom separator as an inset shadow that travels
-	 * with the sticky cell. A collapsed border stays behind at the
-	 * original scroll position and lets a row pixel bleed over the edge. */
 	border-bottom: none;
 	box-shadow: inset 0 -1px 0 var(--border);
 }
@@ -212,9 +265,9 @@ a:hover { text-decoration: underline; }
  *      three green gate icons, is how "ready" reads now the status column
  *      is gone);
  *   3. hover always wins.
- * Which branch a PR targets is left to the Target column, so no extra
- * per-row shading competes with the banding. */
-.prs tbody tr:nth-child(even) { background: var(--stripe); }
+ * Which branch a PR targets is left to the Target column and its filter,
+ * so no extra per-row shading competes with the banding. */
+.prs tbody tr.stripe { background: var(--stripe); }
 .prs tbody tr[data-status="ready"] { background: var(--row-ready); }
 .prs tbody tr:hover { background: var(--row-hover); }
 
@@ -342,12 +395,72 @@ dialog.help::backdrop { background: rgba(0, 0, 0, 0.5); }
 footer { margin-top: 20px; color: var(--muted); font-size: 12px; }
 footer img { vertical-align: middle; }
 
+/* Keep DataTables inside the redesigned table panel. Its behavior is useful;
+ * its surrounding layout and cell spacing should stay invisible. */
+.table-wrap .dt-container .dt-layout-row { margin: 0; }
+.table-wrap .dt-container .dt-layout-cell { padding: 0; }
+
+table.dataTable.prs {
+	margin: 0 !important;
+	width: 100% !important;
+	border-collapse: collapse;
+}
+
+table.dataTable.prs > thead > tr > th,
+table.dataTable.prs > tbody > tr > td {
+	padding: 3px 10px;
+	border-bottom: 1px solid var(--border);
+}
+
+table.dataTable.prs > thead > tr > th:first-child,
+table.dataTable.prs > tbody > tr > td:first-child {
+	padding-left: var(--pad);
+}
+table.dataTable.prs > thead > tr > th:last-child,
+table.dataTable.prs > tbody > tr > td:last-child {
+	padding-right: var(--pad);
+}
+
+table.dataTable.prs > thead > tr > th {
+	padding-top: 6px;
+	padding-bottom: 6px;
+	background: var(--header-bg);
+	color: var(--header-fg);
+	border-bottom: none;
+	box-shadow: inset 0 -1px 0 var(--border);
+}
+
+table.dataTable.prs > thead > tr > th.dt-orderable-asc,
+table.dataTable.prs > thead > tr > th.dt-orderable-desc {
+	padding-right: 30px;
+	cursor: pointer;
+	user-select: none;
+}
+
+table.dataTable.prs > tbody > tr > td.dt-type-numeric { text-align: left; }
+table.dataTable.prs > tbody > tr > td.gate,
+table.dataTable.prs > thead > tr > th.gate-col { text-align: center; }
+
+table.dataTable.prs > tbody > tr.child ul.dtr-details > li {
+	border-bottom-color: var(--border);
+}
+table.dataTable.prs > tbody > tr > td.dt-empty {
+	padding: 16px;
+	color: var(--muted);
+	text-align: center;
+}
 </style>
 
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.3.8/js/dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/3.0.8/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/fixedheader/4.0.6/js/dataTables.fixedHeader.min.js"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 
 <script>
 "use strict";
+
+let prTable;
 
 /* Message of the day: maintained on the Zephyr wiki, shown when not "empty". */
 function loadMotd() {
@@ -422,17 +535,20 @@ function setupAutoRefresh() {
 	setInterval(check, 60000);
 }
 
-/* Open every ready PR in the table that targets main,
+/* Open every ready PR currently shown in the table that targets main,
  * each in its own tab. Most browsers allow a single popup per click
  * and silently block the rest (window.open returns null), so count
  * the casualties and tell the user how to lift the limit instead of
  * failing mysteriously. */
 function openReadyPRs() {
-	const rows = [...document.querySelectorAll(
-		'#pr-table tbody tr[data-status="ready"][data-base="main"]')];
+	const rows = prTable.rows(
+		(_index, _data, node) =>
+			node.dataset.status == "ready" && node.dataset.base == "main",
+		{search: "applied"},
+	).nodes().toArray();
 
 	if (rows.length == 0) {
-		alert("No ready PRs targeting main.");
+		alert("No ready PRs targeting main in the current view.");
 		return;
 	}
 	const blocked = rows.filter((row) => {
@@ -444,6 +560,196 @@ function openReadyPRs() {
 		alert(`The browser blocked ${blocked} of ${rows.length} tabs. ` +
 			"Allow pop-ups for this site (look for the blocked pop-up " +
 			"icon in the address bar) to open all ready PRs at once.");
+	}
+}
+
+/* Build one filter chip per target branch found in the table, "main"
+ * first. The chip group only appears when there is a choice to make. */
+function buildTargetChips(rows) {
+	const group = document.getElementById("target-chips");
+
+	const counts = new Map();
+	rows.forEach((row) => {
+		counts.set(row.dataset.base, (counts.get(row.dataset.base) || 0) + 1);
+	});
+
+	const bases = [...counts.keys()].sort(
+		(a, b) => (a != "main") - (b != "main") || a.localeCompare(b));
+	["", ...bases].forEach((base) => {
+		const chip = document.createElement("button");
+		chip.className = "chip";
+		chip.dataset.target = base;
+		chip.textContent = base || "All";
+		chip.insertAdjacentHTML("beforeend",
+			` <span class="count">${base ? counts.get(base) : rows.length}</span>`);
+		group.appendChild(chip);
+	});
+	group.hidden = bases.length < 2;
+}
+
+function activateChip(chips, key, value) {
+	const selected = chips.find((chip) =>
+		!chip.hidden && chip.dataset[key] == value) || chips[0];
+
+	chips.forEach((chip) =>
+		chip.classList.toggle("active", chip == selected));
+	return selected.dataset[key];
+}
+
+/* DataTables owns searching, exact target filtering, ordering, responsive
+ * columns, empty-state rendering and saved state. The redesigned controls
+ * stay in place and drive its API. */
+function setupDataTable() {
+	const rows = [...document.querySelectorAll("#pr-table tbody tr")];
+	const search = document.getElementById("pr-search");
+	const controls = document.querySelector(".controls");
+	/* Overlap the filters by one pixel so fractional layout heights cannot
+	 * expose scrolling rows at the seam. */
+	const fixedHeaderOffset = () =>
+		Math.max(0, controls.offsetHeight - 1);
+
+	buildTargetChips(rows);
+	const statusChips = [...document.querySelectorAll("#status-chips .chip")];
+	const targetChips = [...document.querySelectorAll("#target-chips .chip")];
+	const rowText = new Map(
+		rows.map((row) => [row, row.textContent.toLowerCase()]));
+
+	const counts = {};
+	rows.forEach((row) => {
+		counts[row.dataset.status] = (counts[row.dataset.status] || 0) + 1;
+	});
+	statusChips.forEach((chip) => {
+		const count = chip.dataset.status
+			? counts[chip.dataset.status] || 0
+			: rows.length;
+		chip.hidden = chip.hidden && count == 0;
+		chip.insertAdjacentHTML("beforeend",
+			` <span class="count">${count}</span>`);
+	});
+
+	let status = "";
+
+	/* A chip's count answers "how many rows would this show?": the text
+	 * search and the other chip group apply, its own group does not. */
+	function updateChipCounts(table) {
+		const text = table.search().trim().toLowerCase();
+		const selectedTarget = table.column(5).search();
+		const candidates = rows.filter((row) =>
+			!text || rowText.get(row).includes(text));
+
+		statusChips.forEach((chip) => {
+			const value = chip.dataset.status;
+			chip.querySelector(".count").textContent = candidates.filter(
+				(row) => (!selectedTarget ||
+					row.dataset.base == selectedTarget) &&
+					(!value || row.dataset.status == value)).length;
+		});
+		targetChips.forEach((chip) => {
+			const value = chip.dataset.target;
+			chip.querySelector(".count").textContent = candidates.filter(
+				(row) => (!status || row.dataset.status == status) &&
+					(!value || row.dataset.base == value)).length;
+		});
+	}
+
+	prTable = new DataTable("#pr-table", {
+		paging: false,
+		info: false,
+		order: [],
+		orderClasses: false,
+		stateSave: true,
+		stateDuration: 0,
+		fixedHeader: {
+			headerOffset: fixedHeaderOffset(),
+		},
+		layout: {
+			topStart: null,
+			topEnd: null,
+			bottomStart: null,
+			bottomEnd: null,
+		},
+		responsive: {
+			details: {
+				renderer: DataTable.Responsive.renderer.listHiddenNodes(),
+			},
+		},
+		language: {
+			emptyTable: "No pull requests are currently available.",
+			zeroRecords: "No pull requests match the current filter.",
+		},
+		stateLoadParams: (_settings, data) => {
+			data.order = [];
+			if (data.columns?.length == 10) {
+				const oldColumns = data.columns;
+				data.columns = [oldColumns[0], oldColumns[1], oldColumns[5],
+					oldColumns[6], oldColumns[7], oldColumns[8],
+					oldColumns[9], oldColumns[2]];
+			}
+			if (data.columns?.length != 8) {
+				return false;
+			}
+			status = data.statusFilter || "";
+		},
+		stateSaveParams: (_settings, data) => {
+			data.order = [];
+			data.statusFilter = status;
+		},
+		columnDefs: [
+			{targets: 0, type: "html-num", responsivePriority: 2},
+			{targets: 1, responsivePriority: 1},
+			{
+				targets: 7,
+				orderable: false,
+				responsivePriority: 3,
+			},
+			{targets: 5, responsivePriority: 4},
+			{targets: [2, 3, 4, 6], responsivePriority: 10},
+		],
+		drawCallback: function () {
+			const table = this.api();
+			table.rows().nodes().each((row) => row.classList.remove("stripe"));
+			table.rows({search: "applied"}).nodes().each((row, index) =>
+				row.classList.toggle("stripe", index % 2 == 1));
+			updateChipCounts(table);
+		},
+	});
+
+	search.value = prTable.search();
+	search.addEventListener("input", () =>
+		prTable.search(search.value).draw());
+
+	status = activateChip(statusChips, "status", status);
+	prTable.search.fixed("status", (_search, _data, index) =>
+		!status || rows[index].dataset.status == status);
+
+	statusChips.forEach((chip) => {
+		chip.addEventListener("click", () => {
+			status = activateChip(statusChips, "status", chip.dataset.status);
+			prTable.draw();
+		});
+	});
+
+	let target = activateChip(
+		targetChips, "target", prTable.column(5).search());
+	prTable.column(5).search(target, {exact: true});
+
+	targetChips.forEach((chip) => {
+		chip.addEventListener("click", () => {
+			target = activateChip(targetChips, "target", chip.dataset.target);
+			prTable.column(5).search(target, {exact: true}).draw();
+		});
+	});
+
+	prTable.draw();
+
+	/* The filters wrap on narrow screens, so keep FixedHeader's offset in
+	 * sync with their measured height. */
+	const updateHeaderOffset = () =>
+		prTable.fixedHeader.headerOffset(fixedHeaderOffset());
+	if (window.ResizeObserver) {
+		new ResizeObserver(updateHeaderOffset).observe(controls);
+	} else {
+		addEventListener("resize", updateHeaderOffset);
 	}
 }
 
@@ -464,6 +770,7 @@ addEventListener("DOMContentLoaded", () => {
 	renderUpdateTime();
 	setInterval(renderUpdateTime, 1000);
 	setupAutoRefresh();
+	setupDataTable();
 	setupHelpDialog();
 });
 </script>
@@ -513,7 +820,9 @@ addEventListener("DOMContentLoaded", () => {
 	right: merge status, assignee approval, and review time. Green icons mean
 	passed, red icons mean action is needed, and the clock counts down the
 	hours left. A row whose three icons are all green is tinted green and
-	ready to merge &mdash; it will be picked up in the next merge round.</p>
+	ready to merge &mdash; it will be picked up in the next merge round. Use
+	the <b>Ready</b> / <b>Waiting</b> / <b>Blocked</b> chips above the table to
+	filter.</p>
 
 	<h4><a href="https://docs.zephyrproject.org/latest/project/dev_env_and_tools.html#labeling-issues-and-pull-requests-in-github">Labels</a></h4>
 	<table>
@@ -547,17 +856,35 @@ addEventListener("DOMContentLoaded", () => {
 	<span><span class="meta-label">CI on main:</span><span class="ci-badges">{{CI_STATUS}}</span></span>
 </div>
 
+<div class="controls">
+	<input type="search" id="pr-search"
+		placeholder="Filter by number, title, author, branch&hellip;"
+		aria-label="Filter pull requests">
+	<div class="chips" id="status-chips" role="group" aria-label="Filter by status">
+		<button class="chip active" data-status="">All</button>
+		<button class="chip" data-status="ready">Ready</button>
+		<button class="chip" data-status="waiting">Waiting</button>
+		<button class="chip" data-status="blocked">Blocked</button>
+		<button class="chip" data-status="unknown" hidden>Checking</button>
+	</div>
+	<!-- Filled by setupDataTable(): one chip per target branch in the table. -->
+	<div class="chips" id="target-chips" role="group"
+		aria-label="Filter by target branch" hidden>
+		<span class="chips-label">Target branch:</span>
+	</div>
+</div>
+
 <div class="table-wrap">
-<table class="prs" id="pr-table">
+<table class="prs responsive" id="pr-table">
 	<thead>
 	<tr>
-		<th title="Pull request number">PR</th>
-		<th title="Pull request title and labels">Title</th>
-		<th title="Who opened the PR">Author</th>
-		<th title="Maintainers assigned to shepherd the PR">Assignees</th>
-		<th title="Reviewers whose approval currently stands">Approvers</th>
-		<th title="Branch the PR will be merged into">Target</th>
-		<th title="Release milestone, if set">Milestone</th>
+		<th title="Pull request number (click to sort)">PR</th>
+		<th title="Pull request title and labels (click to sort)">Title</th>
+		<th title="Who opened the PR (click to sort)">Author</th>
+		<th title="Maintainers assigned to shepherd the PR (click to sort)">Assignees</th>
+		<th title="Reviewers whose approval currently stands (click to sort)">Approvers</th>
+		<th title="Branch the PR will be merged into (click to sort)">Target</th>
+		<th title="Release milestone, if set (click to sort)">Milestone</th>
 		<th class="gate-col" title="Ready to merge? Left to right: conflict-free, assignee approval, review time">Ready to merge?</th>
 	</tr>
 	</thead>

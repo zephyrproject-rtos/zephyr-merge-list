@@ -261,11 +261,13 @@ table.dataTable.prs > tbody > tr.dtr-expanded > td.dtr-control::before { border-
 
 .prs td.num, .prs td.gate { white-space: nowrap; }
 .prs td.title { overflow-wrap: anywhere; }
-/* Wrap the assignee/approver names into a bounded column instead of one long line. */
+/* Keep each GitHub handle on one line so hyphenated names aren't split; the
+ * assignee/approver lists still wrap between names. */
+.prs td.author a, .prs td.people .handles a { white-space: nowrap; }
+/* Bound the assignee/approver column instead of letting it run one long line. */
 .prs td.people .handles {
 	display: inline-block;
 	max-width: 12em;
-	overflow-wrap: anywhere;
 }
 /* Wide screens have the room, so let the lists spread rather than wrap. */
 @media (min-width: 1300px) {

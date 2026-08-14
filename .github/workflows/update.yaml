@@ -50,6 +50,28 @@ jobs:
         with:
           path: public
 
+      - name: Publish to AWS S3
+        continue-on-error: true
+        if: github.event_name != 'pull_request'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ vars.AWS_TESTING_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_TESTING_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          PUBLISH_BUCKET="testing.zephyrproject.org"
+          PUBLISH_DOMAIN="testing.zephyrproject.io"
+          PUBLISH_ROOT="dashboards/merge-list"
+
+          if aws s3 sync public "s3://${PUBLISH_BUCKET}/${PUBLISH_ROOT}" --delete; then
+            echo "Backup page available at: https://${PUBLISH_DOMAIN}/${PUBLISH_ROOT}/index.html" \
+              >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "::warning::S3 backup upload failed; GitHub Pages deploy is unaffected."
+            echo "S3 backup upload failed (see logs); GitHub Pages deploy is unaffected." \
+              >> "${GITHUB_STEP_SUMMARY}"
+            exit 1
+          fi
+
   deploy:
     if: github.event_name != 'pull_request'
     needs: build

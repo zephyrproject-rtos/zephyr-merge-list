@@ -23,6 +23,8 @@ HTML_POST = "index.html.post"
 
 PR_JSON_OUT = "public/pr.json.gz"
 
+MERGE_LIST_JSON_OUT = "public/merge_list.json"
+
 CI_JSON_OUT = "public/ci.json"
 CI_IGNORE = ["Code Coverage with codecov"]
 
@@ -127,6 +129,9 @@ def evaluate_criteria(repo, number, data):
         print(f"re-fetch: {number}")
         pr = repo.get_pull(number)
         rebaseable = pr.rebaseable
+        # Keep the stored PR in sync so everything downstream, including
+        # the HTML and JSON output, reports the re-fetched state.
+        data.pr = pr
 
     approvers = set()
     reviews = {}
@@ -319,6 +324,54 @@ def table_entry(number, data):
             {readiness}
         </tr>
         """
+
+
+def json_entry(number, data):
+    pr = data.pr
+
+    return {
+        "number": number,
+        "url": pr.html_url,
+        "title": pr.title,
+        "status": merge_status(data),
+        "author": pr.user.login,
+        "assignees": sorted(a.login for a in pr.assignees),
+        "approvers": sorted(data.approvers),
+        "base": pr.base.ref,
+        "head": {
+            "ref": pr.head.ref,
+            "sha": pr.head.sha,
+            "repo": pr.head.repo.full_name if pr.head.repo else None,
+        },
+        "milestone": pr.milestone.title if pr.milestone else None,
+        "labels": sorted(l.name for l in pr.labels),
+        "created_at": pr.created_at.astimezone(UTC).isoformat(),
+        "updated_at": (pr.updated_at.astimezone(UTC).isoformat()
+                       if pr.updated_at else None),
+        "draft": pr.draft,
+        "commits": pr.commits,
+        "changed_files": pr.changed_files,
+        "additions": pr.additions,
+        "deletions": pr.deletions,
+        "gates": {
+            "conflict": ("unknown" if data.rebaseable is None
+                         else "pass" if data.rebaseable else "fail"),
+            "approval": "pass" if data.assignee else "fail",
+            "review_time": "pass" if data.time else "wait",
+        },
+        "rebaseable": data.rebaseable,
+        "mergeable_state": pr.mergeable_state,
+        "assignee_approved": data.assignee,
+        "review_window_elapsed": data.time,
+        "time_left_hours": data.time_left,
+        "hotfix": data.hotfix,
+        "trivial": data.trivial,
+        "override_required": data.override_required,
+        "dnm": data.dnm,
+        "dismissed": data.dismissed,
+        "ci_run_recent": data.ci_run_recent,
+        "ci_age_days": data.ci_age_days,
+    }
 
 
 def detect_feature_freeze_tag(repo):
@@ -591,8 +644,21 @@ def main(argv):
         wait = data.time_left if status == "waiting" else 0
         return (status_order[status], wait, -number)
 
+    json_data = []
     for number, data in sorted(pr_data.items(), key=sort_key):
         html_out += table_entry(number, data)
+        json_data.append(json_entry(number, data))
+
+    with open(MERGE_LIST_JSON_OUT, "w") as f:
+        json.dump({
+            "updated": timestamp,
+            "freeze_mode": freeze_mode,
+            "latest_tag": latest_tag,
+            "review_window_biz_hours": REVIEW_WINDOW_BIZ_HOURS,
+            "review_window_trivial_hours": REVIEW_WINDOW_TRIVIAL_HOURS,
+            "count": len(json_data),
+            "pull_requests": json_data,
+        }, f, indent=4)
 
     with open(HTML_POST) as f:
         html_out += f.read()

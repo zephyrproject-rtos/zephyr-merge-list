@@ -12,6 +12,7 @@ import json
 import os
 import re
 import sys
+import time
 import tabulate
 import gzip
 
@@ -35,6 +36,7 @@ HOTFIX_LABEL = "Hotfix"
 TRIVIAL_LABEL = "Trivial"
 OVERRIDE_REQUIRED_LABEL = "Override Required"
 
+PR_PAGE_SIZE = 100
 DETAILS_BATCH_SIZE = 20
 REVIEW_PAGE_SIZE = 100
 TIMELINE_PAGE_SIZE = 100
@@ -60,6 +62,30 @@ class PRData:
     ci_run_recent: bool = field(default=False)
     dismissed: bool = field(default=False)
     debug: list = field(default=None)
+
+
+RATE = {"cost": 0, "remaining": None}
+
+
+def graphql_query(gh, query, variables):
+    """graphql_query, keeping a running total of what the run has spent.
+
+    Actions GITHUB_TOKEN gets 1000 graphql points per hour per repository,
+    rather than the 5000 a user token gets, so it is worth watching.
+    """
+    _, resp = gh.requester.graphql_query(query, variables)
+
+    rate_limit = resp["data"].get("rateLimit")
+    if rate_limit:
+        RATE["cost"] += rate_limit["cost"]
+        RATE["remaining"] = rate_limit["remaining"]
+
+    return resp
+
+
+def print_graphql_cost(label, started):
+    print(f"{label}: {time.monotonic() - started:.1f}s, "
+          f"{RATE['cost']} points spent, {RATE['remaining']} remaining")
 
 
 def print_rate_limit(gh, org):
@@ -473,8 +499,12 @@ def parse_args(argv):
 
 QUERY = """
 query($owner: String!, $name: String!, $cursor: String) {
+  rateLimit {
+    cost
+    remaining
+  }
   repository(owner: $owner, name: $name) {
-    pullRequests(first: 50, states: OPEN, after: $cursor) {
+    pullRequests(first: PR_PAGE_SIZE, states: OPEN, after: $cursor) {
       pageInfo {
         hasNextPage
         endCursor
@@ -501,7 +531,8 @@ query($owner: String!, $name: String!, $cursor: String) {
     }
   }
 }
-"""
+""".replace("PR_PAGE_SIZE", str(PR_PAGE_SIZE))
+
 
 def get_prs(gh, org, repo):
     variables = {
@@ -512,9 +543,10 @@ def get_prs(gh, org, repo):
 
     all_prs = []
     has_next_page = True
+    started = time.monotonic()
 
     while has_next_page:
-        _, resp = gh.requester.graphql_query(QUERY, variables)
+        resp = graphql_query(gh, QUERY, variables)
 
         prs = resp["data"]["repository"]["pullRequests"]
 
@@ -523,6 +555,8 @@ def get_prs(gh, org, repo):
         variables["cursor"] = prs["pageInfo"]["endCursor"]
 
         print(f"query: {len(all_prs)} PRs")
+
+    print_graphql_cost(f"query: {len(all_prs)} PRs", started)
 
     return all_prs
 
@@ -616,13 +650,17 @@ PR_ALIAS = """
 
 DETAILS_QUERY = """
 query($owner: String!, $name: String!) {
-  repository(owner: $owner, name: $name) {ALIASES
+  rateLimit {\n    cost\n    remaining\n  }\n  repository(owner: $owner, name: $name) {ALIASES
   }
 }
 """ + PR_DETAILS_FRAGMENT + REVIEW_PAGE_FRAGMENT + TIMELINE_PAGE_FRAGMENT
 
 REVIEWS_PAGE_QUERY = """
 query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
+  rateLimit {
+    cost
+    remaining
+  }
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
       reviews(first: REVIEW_PAGE_SIZE, after: $cursor) {
@@ -635,6 +673,10 @@ query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
 
 TIMELINE_PAGE_QUERY = """
 query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
+  rateLimit {
+    cost
+    remaining
+  }
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
       timelineItems(first: TIMELINE_PAGE_SIZE, itemTypes: TIMELINE_ITEM_TYPES,
@@ -656,7 +698,7 @@ def complete_connection(gh, variables, number, pr, name, query):
     while connection["pageInfo"]["hasNextPage"]:
         print(f"page: {number} {name}")
         page_variables["cursor"] = connection["pageInfo"]["endCursor"]
-        _, resp = gh.requester.graphql_query(query, page_variables)
+        resp = graphql_query(gh, query, page_variables)
         connection = resp["data"]["repository"]["pullRequest"][name]
         pr[name]["nodes"].extend(connection["nodes"])
 
@@ -666,8 +708,8 @@ def complete_connection(gh, variables, number, pr, name, query):
 def fetch_details_batch(gh, variables, numbers):
     """Run one aliased query, return the nodes that came back keyed by number."""
     aliases = "".join(PR_ALIAS.replace("NUMBER", str(n)) for n in numbers)
-    _, resp = gh.requester.graphql_query(
-            DETAILS_QUERY.replace("ALIASES", aliases), variables)
+    resp = graphql_query(
+            gh, DETAILS_QUERY.replace("ALIASES", aliases), variables)
 
     prs = resp["data"]["repository"]
 
@@ -683,6 +725,7 @@ def get_pr_details(gh, org, repo, numbers):
     """
     variables = {"owner": org, "name": repo}
     details = {}
+    started = time.monotonic()
 
     for start in range(0, len(numbers), DETAILS_BATCH_SIZE):
         batch = numbers[start:start + DETAILS_BATCH_SIZE]
@@ -706,6 +749,8 @@ def get_pr_details(gh, org, repo, numbers):
                             REVIEWS_PAGE_QUERY)
         complete_connection(gh, variables, number, pr, "timelineItems",
                             TIMELINE_PAGE_QUERY)
+
+    print_graphql_cost(f"details: {len(details)} PRs", started)
 
     return details
 

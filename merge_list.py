@@ -106,6 +106,20 @@ def set_ci_age_data(repo, data):
     data.ci_run_recent = True
 
 
+def graphql_rebaseable(pr_raw):
+    """Return the rebaseable tri-state (True/False/None) from GraphQL data.
+
+    GitHub works out mergeability in the background, so a pull request that has
+    not been tested yet reports mergeable=UNKNOWN. canBeRebased is a non-null
+    Boolean and reads False during that window, which is indistinguishable from
+    a genuine conflict, so only trust it once mergeable has settled.
+    """
+    if pr_raw["mergeable"] == "UNKNOWN":
+        return None
+
+    return pr_raw["canBeRebased"]
+
+
 def evaluate_criteria(repo, number, data):
     print(f"process: {number}")
 
@@ -113,7 +127,7 @@ def evaluate_criteria(repo, number, data):
     author = pr.user.login
     labels = [l.name for l in pr.labels]
     assignees = [a.login for a in pr.assignees]
-    rebaseable = pr.rebaseable
+    rebaseable = graphql_rebaseable(data.pr_raw)
     hotfix = HOTFIX_LABEL in labels
     trivial = TRIVIAL_LABEL in labels
     override_required = OVERRIDE_REQUIRED_LABEL in labels
@@ -122,11 +136,6 @@ def evaluate_criteria(repo, number, data):
         if "DNM" in label:
             data.dnm = True
             break
-
-    if rebaseable is None:
-        print(f"re-fetch: {number}")
-        pr = repo.get_pull(number)
-        rebaseable = pr.rebaseable
 
     approvers = set()
     reviews = {}
@@ -471,6 +480,8 @@ query($owner: String!, $name: String!, $cursor: String) {
         statusCheckRollup {
           state
         }
+        mergeable
+        canBeRebased
       }
     }
   }

@@ -12,6 +12,7 @@ import json
 import os
 import re
 import sys
+import time
 import tabulate
 import gzip
 
@@ -35,6 +36,11 @@ HOTFIX_LABEL = "Hotfix"
 TRIVIAL_LABEL = "Trivial"
 OVERRIDE_REQUIRED_LABEL = "Override Required"
 
+PR_PAGE_SIZE = 100
+DETAILS_BATCH_SIZE = 20
+REVIEW_PAGE_SIZE = 100
+TIMELINE_PAGE_SIZE = 100
+
 REVIEW_WINDOW_BIZ_HOURS = 48
 REVIEW_WINDOW_TRIVIAL_HOURS = 4
 
@@ -42,7 +48,7 @@ REVIEW_WINDOW_TRIVIAL_HOURS = 4
 @dataclass
 class PRData:
     pr_raw: dict
-    pr: github.PullRequest
+    pr: dict
     assignee: str = field(default=None)
     approvers: set = field(default=None)
     time: bool = field(default=False)
@@ -58,11 +64,40 @@ class PRData:
     debug: list = field(default=None)
 
 
+RATE = {"cost": 0, "remaining": None}
+
+
+def graphql_query(gh, query, variables):
+    """graphql_query, keeping a running total of what the run has spent.
+
+    Actions GITHUB_TOKEN gets 1000 graphql points per hour per repository,
+    rather than the 5000 a user token gets, so it is worth watching.
+    """
+    _, resp = gh.requester.graphql_query(query, variables)
+
+    rate_limit = resp["data"].get("rateLimit")
+    if rate_limit:
+        RATE["cost"] += rate_limit["cost"]
+        RATE["remaining"] = rate_limit["remaining"]
+
+    return resp
+
+
+def print_graphql_cost(label, started):
+    print(f"{label}: {time.monotonic() - started:.1f}s, "
+          f"{RATE['cost']} points spent, {RATE['remaining']} remaining")
+
+
 def print_rate_limit(gh, org):
     response = gh.get_organization(org)
     for header, value in response.raw_headers.items():
         if header.startswith("x-ratelimit"):
             print(f"{header}: {value}")
+
+
+def parse_time(value):
+    """Parse a graphql DateTime, which is ISO-8601 with a trailing Z."""
+    return datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
 def calc_biz_hours(ref, delta):
@@ -78,14 +113,15 @@ def calc_biz_hours(ref, delta):
 
 def set_ci_age_data(repo, data):
     pr = data.pr
+    number = pr["number"]
 
-    pr_age = datetime.datetime.now(UTC) - pr.created_at
+    pr_age = datetime.datetime.now(UTC) - parse_time(pr["createdAt"])
     if pr_age < datetime.timedelta(days=CI_RUN_MAX_AGE_DAYS):
-        print(f"ci age: skip {pr.number}")
+        print(f"ci age: skip {number}")
         data.ci_run_recent = True
         return
 
-    runs = repo.get_workflow_runs(head_sha=pr.head.sha)
+    runs = repo.get_workflow_runs(head_sha=pr["headRefOid"])
 
     target_run = None
     for run in runs:
@@ -97,7 +133,7 @@ def set_ci_age_data(repo, data):
         return
 
     run_age = datetime.datetime.now(UTC) - run.run_started_at
-    print(f"ci age: {pr.number}: {run_age} {run.html_url}")
+    print(f"ci age: {number}: {run_age} {run.html_url}")
     if run_age > datetime.timedelta(days=CI_RUN_MAX_AGE_DAYS):
         data.ci_age_days = run_age.days
         data.ci_run_recent = False
@@ -106,14 +142,28 @@ def set_ci_age_data(repo, data):
     data.ci_run_recent = True
 
 
+def graphql_rebaseable(pr_raw):
+    """Return the rebaseable tri-state (True/False/None) from GraphQL data.
+
+    GitHub works out mergeability in the background, so a pull request that has
+    not been tested yet reports mergeable=UNKNOWN. canBeRebased is a non-null
+    Boolean and reads False during that window, which is indistinguishable from
+    a genuine conflict, so only trust it once mergeable has settled.
+    """
+    if pr_raw["mergeable"] == "UNKNOWN":
+        return None
+
+    return pr_raw["canBeRebased"]
+
+
 def evaluate_criteria(repo, number, data):
     print(f"process: {number}")
 
     pr = data.pr
-    author = pr.user.login
-    labels = [l.name for l in pr.labels]
-    assignees = [a.login for a in pr.assignees]
-    rebaseable = pr.rebaseable
+    author = pr["author"]["login"] if pr["author"] else None
+    labels = [l["name"] for l in pr["labels"]["nodes"]]
+    assignees = [a["login"] for a in pr["assignees"]["nodes"]]
+    rebaseable = graphql_rebaseable(data.pr_raw)
     hotfix = HOTFIX_LABEL in labels
     trivial = TRIVIAL_LABEL in labels
     override_required = OVERRIDE_REQUIRED_LABEL in labels
@@ -123,20 +173,17 @@ def evaluate_criteria(repo, number, data):
             data.dnm = True
             break
 
-    if rebaseable is None:
-        print(f"re-fetch: {number}")
-        pr = repo.get_pull(number)
-        rebaseable = pr.rebaseable
-
+    # Last opinionated review per user wins, so walk them in order. The
+    # graphql connection is already chronological, sort anyway so the state
+    # machine below does not silently depend on that.
     approvers = set()
-    reviews = {}
-    for review in data.pr.get_reviews():
-        reviews[review.id] = review
-        if review.user:
-            if review.state == 'APPROVED':
-                approvers.add(review.user.login)
-            elif review.state in ['DISMISSED', 'CHANGES_REQUESTED']:
-                approvers.discard(review.user.login)
+    for review in sorted(pr["reviews"]["nodes"], key=lambda r: r["createdAt"]):
+        if review["author"]:
+            login = review["author"]["login"]
+            if review["state"] == 'APPROVED':
+                approvers.add(login)
+            elif review["state"] in ['DISMISSED', 'CHANGES_REQUESTED']:
+                approvers.discard(login)
 
     assignee_approved = False
 
@@ -151,19 +198,21 @@ def evaluate_criteria(repo, number, data):
 
     dismissed = False
 
-    reference_time = pr.created_at
-    for event in data.pr.get_issue_events():
-        if event.event == 'ready_for_review':
-            reference_time = event.created_at
-        elif event.event == 'review_dismissed':
-            dismissed_review = event.dismissed_review
-            review = reviews[dismissed_review['review_id']]
+    reference_time = parse_time(pr["createdAt"])
+    for item in pr["timelineItems"]["nodes"]:
+        if item["__typename"] == 'ReadyForReviewEvent':
+            reference_time = parse_time(item["createdAt"])
+        elif item["__typename"] == 'ReviewDismissedEvent':
+            review = item["review"]
+            if not review or not review["author"] or not item["actor"]:
+                continue
+            reviewer = review["author"]["login"]
 
             # Do not trigger for approval dismissal via push.
-            if ('dismissal_commit_id' not in dismissed_review and
-                dismissed_review['state'] == 'changes_requested' and
-                event.actor.login != review.user.login and
-                review.user.login not in approvers):
+            if (item["pullRequestCommit"] is None and
+                item["previousReviewState"] == 'CHANGES_REQUESTED' and
+                item["actor"]["login"] != reviewer and
+                reviewer not in approvers):
                 dismissed = True
 
     now = datetime.datetime.now(UTC)
@@ -238,17 +287,17 @@ def gh_user(login):
 def table_entry(number, data):
     pr = data.pr
     status = merge_status(data)
-    url = html.escape(pr.html_url, quote=True)
-    title = html.escape(pr.title)
-    author = gh_user(pr.user.login)
-    assignees = ', '.join(gh_user(a.login)
-                          for a in sorted(pr.assignees,
-                                          key=lambda user: user.login))
+    url = html.escape(pr["url"], quote=True)
+    title = html.escape(pr["title"])
+    author = gh_user(pr["author"]["login"]) if pr["author"] else ""
+    assignees = ', '.join(
+            gh_user(login)
+            for login in sorted(a["login"] for a in pr["assignees"]["nodes"]))
     approvers = ', '.join(gh_user(login) for login in sorted(data.approvers))
 
-    base = html.escape(pr.base.ref)
-    base_attr = html.escape(pr.base.ref, quote=True)
-    milestone = html.escape(pr.milestone.title) if pr.milestone else ""
+    base = html.escape(pr["baseRefName"])
+    base_attr = html.escape(pr["baseRefName"], quote=True)
+    milestone = html.escape(pr["milestone"]["title"]) if pr["milestone"] else ""
 
     if data.rebaseable is None:
         conflict = gate_icon(
@@ -450,8 +499,12 @@ def parse_args(argv):
 
 QUERY = """
 query($owner: String!, $name: String!, $cursor: String) {
+  rateLimit {
+    cost
+    remaining
+  }
   repository(owner: $owner, name: $name) {
-    pullRequests(first: 50, states: OPEN, after: $cursor) {
+    pullRequests(first: PR_PAGE_SIZE, states: OPEN, after: $cursor) {
       pageInfo {
         hasNextPage
         endCursor
@@ -467,15 +520,19 @@ query($owner: String!, $name: String!, $cursor: String) {
             name
           }
         }
+        baseRefName
         reviewDecision
         statusCheckRollup {
           state
         }
+        mergeable
+        canBeRebased
       }
     }
   }
 }
-"""
+""".replace("PR_PAGE_SIZE", str(PR_PAGE_SIZE))
+
 
 def get_prs(gh, org, repo):
     variables = {
@@ -486,9 +543,10 @@ def get_prs(gh, org, repo):
 
     all_prs = []
     has_next_page = True
+    started = time.monotonic()
 
     while has_next_page:
-        _, resp = gh.requester.graphql_query(QUERY, variables)
+        resp = graphql_query(gh, QUERY, variables)
 
         prs = resp["data"]["repository"]["pullRequests"]
 
@@ -498,7 +556,204 @@ def get_prs(gh, org, repo):
 
         print(f"query: {len(all_prs)} PRs")
 
+    print_graphql_cost(f"query: {len(all_prs)} PRs", started)
+
     return all_prs
+
+REVIEW_PAGE_FRAGMENT = """
+fragment reviewPage on PullRequestReviewConnection {
+  nodes {
+    state
+    createdAt
+    author {
+      login
+    }
+  }
+  pageInfo {
+    hasNextPage
+    endCursor
+  }
+}
+"""
+
+TIMELINE_ITEM_TYPES = "[READY_FOR_REVIEW_EVENT, REVIEW_DISMISSED_EVENT]"
+
+TIMELINE_PAGE_FRAGMENT = """
+fragment timelinePage on PullRequestTimelineItemsConnection {
+  nodes {
+    __typename
+    ... on ReadyForReviewEvent {
+      createdAt
+    }
+    ... on ReviewDismissedEvent {
+      createdAt
+      previousReviewState
+      actor {
+        login
+      }
+      pullRequestCommit {
+        id
+      }
+      review {
+        author {
+          login
+        }
+      }
+    }
+  }
+  pageInfo {
+    hasNextPage
+    endCursor
+  }
+}
+"""
+
+PR_DETAILS_FRAGMENT = """
+fragment prDetails on PullRequest {
+  number
+  url
+  title
+  createdAt
+  baseRefName
+  headRefOid
+  author {
+    login
+  }
+  assignees(first: 20) {
+    nodes {
+      login
+    }
+  }
+  labels(first: 30) {
+    nodes {
+      name
+    }
+  }
+  milestone {
+    title
+  }
+  reviews(first: REVIEW_PAGE_SIZE) {
+    ...reviewPage
+  }
+  timelineItems(first: TIMELINE_PAGE_SIZE, itemTypes: TIMELINE_ITEM_TYPES) {
+    ...timelinePage
+  }
+}
+""".replace("REVIEW_PAGE_SIZE", str(REVIEW_PAGE_SIZE)) \
+   .replace("TIMELINE_PAGE_SIZE", str(TIMELINE_PAGE_SIZE)) \
+   .replace("TIMELINE_ITEM_TYPES", TIMELINE_ITEM_TYPES)
+
+PR_ALIAS = """
+    prNUMBER: pullRequest(number: NUMBER) {
+      ...prDetails
+    }"""
+
+DETAILS_QUERY = """
+query($owner: String!, $name: String!) {
+  rateLimit {\n    cost\n    remaining\n  }\n  repository(owner: $owner, name: $name) {ALIASES
+  }
+}
+""" + PR_DETAILS_FRAGMENT + REVIEW_PAGE_FRAGMENT + TIMELINE_PAGE_FRAGMENT
+
+REVIEWS_PAGE_QUERY = """
+query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
+  rateLimit {
+    cost
+    remaining
+  }
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      reviews(first: REVIEW_PAGE_SIZE, after: $cursor) {
+        ...reviewPage
+      }
+    }
+  }
+}
+""".replace("REVIEW_PAGE_SIZE", str(REVIEW_PAGE_SIZE)) + REVIEW_PAGE_FRAGMENT
+
+TIMELINE_PAGE_QUERY = """
+query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
+  rateLimit {
+    cost
+    remaining
+  }
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      timelineItems(first: TIMELINE_PAGE_SIZE, itemTypes: TIMELINE_ITEM_TYPES,
+                    after: $cursor) {
+        ...timelinePage
+      }
+    }
+  }
+}
+""".replace("TIMELINE_PAGE_SIZE", str(TIMELINE_PAGE_SIZE)) \
+   .replace("TIMELINE_ITEM_TYPES", TIMELINE_ITEM_TYPES) + TIMELINE_PAGE_FRAGMENT
+
+
+def complete_connection(gh, variables, number, pr, name, query):
+    """Page through a connection that did not fit in the batched query."""
+    connection = pr[name]
+
+    page_variables = dict(variables, number=number)
+    while connection["pageInfo"]["hasNextPage"]:
+        print(f"page: {number} {name}")
+        page_variables["cursor"] = connection["pageInfo"]["endCursor"]
+        resp = graphql_query(gh, query, page_variables)
+        connection = resp["data"]["repository"]["pullRequest"][name]
+        pr[name]["nodes"].extend(connection["nodes"])
+
+    pr[name]["pageInfo"] = connection["pageInfo"]
+
+
+def fetch_details_batch(gh, variables, numbers):
+    """Run one aliased query, return the nodes that came back keyed by number."""
+    aliases = "".join(PR_ALIAS.replace("NUMBER", str(n)) for n in numbers)
+    resp = graphql_query(
+            gh, DETAILS_QUERY.replace("ALIASES", aliases), variables)
+
+    prs = resp["data"]["repository"]
+
+    return {n: prs[f"pr{n}"] for n in numbers if prs.get(f"pr{n}")}
+
+
+def get_pr_details(gh, org, repo, numbers):
+    """Fetch the per-PR data for the whole merge list in a few queries.
+
+    This replaces the get_pull() + get_reviews() + get_issue_events() REST
+    calls that used to run once per pull request, which was three round trips
+    each, serially, for every pull request that made it past the filter.
+    """
+    variables = {"owner": org, "name": repo}
+    details = {}
+    started = time.monotonic()
+
+    for start in range(0, len(numbers), DETAILS_BATCH_SIZE):
+        batch = numbers[start:start + DETAILS_BATCH_SIZE]
+        try:
+            details.update(fetch_details_batch(gh, variables, batch))
+        except Exception as e:
+            # A single bad pull request fails the whole aliased query, so
+            # retry the batch one at a time rather than losing all of it.
+            print(f"details: batch failed, retrying individually: {e}")
+            for number in batch:
+                try:
+                    details.update(fetch_details_batch(gh, variables, [number]))
+                except Exception as e:
+                    print(f"details: skipping {number}: {e}")
+
+        print(f"details: {len(details)}/{len(numbers)} PRs")
+
+    # Long lived pull requests can overflow a single page of either connection.
+    for number, pr in details.items():
+        complete_connection(gh, variables, number, pr, "reviews",
+                            REVIEWS_PAGE_QUERY)
+        complete_connection(gh, variables, number, pr, "timelineItems",
+                            TIMELINE_PAGE_QUERY)
+
+    print_graphql_cost(f"details: {len(details)} PRs", started)
+
+    return details
+
 
 def we_dont_care(pr):
     try:
@@ -547,6 +802,7 @@ def main(argv):
     with gzip.open(PR_JSON_OUT, "wt") as f:
         json.dump(all_prs, f, indent=4)
 
+    candidates = {}
     for pr_raw in all_prs:
         if we_dont_care(pr_raw):
             continue
@@ -558,15 +814,23 @@ def main(argv):
             print(f"ignoring: {number} milestone={milestone['title']} > {latest_tag}")
             continue
 
-        print(f"fetch: {number}")
-        pr = repo.get_pull(number)
-
-        if not (pr.base.ref == "main" or
-                (pr.base.ref.startswith("v") and pr.base.ref.endswith("-branch"))):
-            print(f"ignoring: {number} ref={pr.base.ref}")
+        base = pr_raw["baseRefName"]
+        if not (base == "main" or
+                (base.startswith("v") and base.endswith("-branch"))):
+            print(f"ignoring: {number} ref={base}")
             continue
 
-        pr_data[number] = PRData(pr_raw=pr_raw, pr=pr)
+        candidates[number] = pr_raw
+
+    print(f"fetch: {len(candidates)} PRs")
+    details = get_pr_details(gh, args.org, args.repo, list(candidates))
+
+    for number, pr_raw in candidates.items():
+        if number not in details:
+            print(f"ignoring: {number} no detail data")
+            continue
+
+        pr_data[number] = PRData(pr_raw=pr_raw, pr=details[number])
 
     for number, data in pr_data.items():
         evaluate_criteria(repo, number, data)

@@ -281,7 +281,7 @@ table.dataTable.prs > tbody > tr.dtr-expanded > td.dtr-control::before { border-
 
 .gate-icons {
 	display: inline-grid;
-	grid-template-columns: 18px 18px auto;
+	grid-template-columns: 18px 18px 18px auto;
 	align-items: center;
 	justify-items: start;
 	column-gap: 4px;
@@ -789,15 +789,20 @@ addEventListener("DOMContentLoaded", () => {
 	<a href="https://docs.zephyrproject.org/latest/project/release_process.html#pull-request-merge-criteria">merge criteria</a>.</p>
 
 	<h4>When is a PR ready to merge?</h4>
-	<p>When all three icons in <b>Ready to merge?</b> are green:</p>
+	<p>When all four icons in <b>Ready to merge?</b> are green:</p>
 	<ul class="help-gates">
 		<li><span class="gate-icon gate-conflict gate-pass" aria-hidden="true"><i
 			data-lucide="git-merge"></i></span>
 			<span><b>Conflict-free</b> &mdash; applies cleanly.</span></li>
+		<li><span class="gate-icon gate-ci gate-pass" aria-hidden="true"><i
+			data-lucide="circle-check"></i></span>
+			<span><b>CI passing</b> &mdash; also green when a release engineer
+			is expected to override the required checks.</span></li>
 		<li><span class="gate-icon gate-approval gate-pass" aria-hidden="true"><i
 			data-lucide="user-round-check"></i></span>
-			<span><b>Assignee approved</b> &mdash; automatic for hotfixes,
-			unassigned PRs, and self-assignees.</span></li>
+			<span><b>Approved</b> &mdash; reviewers signed off, and an assignee
+			did too; assignee approval is automatic for hotfixes, unassigned
+			PRs, and self-assignees.</span></li>
 		<li><span class="gate-icon gate-review gate-pass" aria-hidden="true"><i
 			data-lucide="clock-check"></i></span>
 			<span><b>Review window elapsed</b> &mdash;
@@ -811,17 +816,25 @@ addEventListener("DOMContentLoaded", () => {
 			data-lucide="git-merge-conflict"></i></span>
 			<span><b>Merge conflict</b> &mdash; rebase the PR branch onto the
 			latest target branch and resolve any conflicts.</span></li>
+		<li><span class="gate-icon gate-ci gate-fail" aria-hidden="true"><i
+			data-lucide="circle-x"></i></span>
+			<span><b>CI failing</b> &mdash; fix the failures, or get the
+			<span class="tag tag-override">override required</span>
+			label.</span></li>
 		<li><span class="gate-icon gate-approval gate-fail" aria-hidden="true"><i
 			data-lucide="user-round-x"></i></span>
-			<span><b>Approval missing</b> &mdash; at least one assignee must
-			approve.</span></li>
+			<span><b>Approval missing</b> &mdash; the PR is not approved yet,
+			or no assignee has approved it.</span></li>
 	</ul>
 	<p class="help-gate-note"><span class="gate-icon gate-review gate-wait"
 		aria-hidden="true"><i data-lucide="clock-3"></i></span>
 		<span>A yellow clock shows the hours remaining
 		in the review window.</span></p>
+	<p class="help-gate-note"><span class="gate-icon gate-ci gate-wait"
+		aria-hidden="true"><i data-lucide="refresh-cw"></i></span>
+		<span>A yellow arrow means CI is still running.</span></p>
 
-	<h4>My PR has three green icons. Why hasn&rsquo;t it been merged?</h4>
+	<h4>My PR has four green icons. Why hasn&rsquo;t it been merged?</h4>
 	<p>Release engineers process ready PRs several times a day, so it will
 	probably be merged within a few hours.</p>
 
@@ -886,7 +899,7 @@ addEventListener("DOMContentLoaded", () => {
 		<th title="Reviewers whose approval currently stands (click to sort)">Approvers</th>
 		<th title="Branch the PR will be merged into (click to sort)">Target</th>
 		<th title="Release milestone, if set (click to sort)">Milestone</th>
-		<th class="gate-col" title="Ready to merge? Left to right: conflict-free, assignee approval, review time">Ready to merge?</th>
+		<th class="gate-col" title="Ready to merge? Left to right: conflict-free, CI, approval, review time">Ready to merge?</th>
 	</tr>
 	</thead>
 	<tbody>

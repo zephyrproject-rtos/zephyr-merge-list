@@ -1,8 +1,10 @@
 # Zephyr merge list
 
 This script produces a static HTML page with the list of PRs approved and ready
-for merge for the main Zephyr project repository. This is meant to be run
-periodically using GitHub actions and the output published using GitHub pages.
+for merge for the main Zephyr project repository. PRs labelled `Hotfix` are
+always listed, however unmergeable they are, since they unbreak the main
+branch. This is meant to be run periodically using GitHub actions and the
+output published using GitHub pages.
 
 ## Running locally
 

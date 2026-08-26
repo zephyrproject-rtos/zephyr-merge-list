@@ -768,7 +768,8 @@ addEventListener("DOMContentLoaded", () => {
 	<h1>Zephyr merge list</h1>
 	<p class="subtitle">Open pull requests that are approved, pass CI, and are
 	in line to be merged into
-	<a href="https://github.com/zephyrproject-rtos/zephyr">zephyrproject-rtos/zephyr</a>.
+	<a href="https://github.com/zephyrproject-rtos/zephyr">zephyrproject-rtos/zephyr</a>,
+	plus every open hotfix.
 	<button class="help-link"
 		onclick="document.getElementById('help-dialog').showModal()">How this list
 		works</button></p>
@@ -787,6 +788,10 @@ addEventListener("DOMContentLoaded", () => {
 	passing CI. Code review is done: this page tracks the final wait for a
 	release engineer to apply the project's
 	<a href="https://docs.zephyrproject.org/latest/project/release_process.html#pull-request-merge-criteria">merge criteria</a>.</p>
+	<p>The one exception is a <span class="tag tag-hotfix">hotfix</span>: it
+	unbreaks main, so it is listed as soon as it is opened even when it is
+	not approved yet, is failing CI, or conflicts. The
+	<b>Ready to merge?</b> icons show what it still needs.</p>
 
 	<h4>When is a PR ready to merge?</h4>
 	<p>When all four icons in <b>Ready to merge?</b> are green:</p>

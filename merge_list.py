@@ -614,17 +614,33 @@ def get_prs(gh, org, repo):
 
     return all_prs
 
+
+def is_hotfix(pr):
+    for label in pr["labels"]["nodes"]:
+        if label["name"] == HOTFIX_LABEL:
+            return True
+    return False
+
+
 def we_dont_care(pr):
     try:
         if pr["isDraft"]:
             return True
 
+        hotfix = False
         override_required = False
         for label in pr["labels"]["nodes"]:
             if "DNM" in label["name"]:
                 return True
+            if label["name"] == HOTFIX_LABEL:
+                hotfix = True
             if label["name"] == OVERRIDE_REQUIRED_LABEL:
                 override_required = True
+
+        # A hotfix unbreaks main, so it stays on the list however
+        # unmergeable it is; the gate icons report what it still needs.
+        if hotfix:
+            return False
 
         if pr['reviewDecision'] != "APPROVED":
             return True
@@ -668,7 +684,8 @@ def main(argv):
         number = pr_raw["number"]
         milestone = pr_raw["milestone"]
 
-        if freeze_mode and milestone and milestone["title"] > latest_tag:
+        if (freeze_mode and milestone and milestone["title"] > latest_tag and
+            not is_hotfix(pr_raw)):
             print(f"ignoring: {number} milestone={milestone['title']} > {latest_tag}")
             continue
 

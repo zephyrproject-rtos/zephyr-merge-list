@@ -50,6 +50,8 @@ class PRData:
     time: bool = field(default=False)
     time_left: int = field(default=None)
     rebaseable: bool = field(default=False)
+    approved: bool = field(default=False)
+    ci_state: str = field(default=None)
     hotfix: bool = field(default=False)
     trivial: bool = field(default=False)
     override_required: bool = field(default=False)
@@ -112,6 +114,7 @@ def evaluate_criteria(repo, number, data):
     print(f"process: {number}")
 
     pr = data.pr
+    pr_raw = data.pr_raw
     author = pr.user.login
     labels = [l.name for l in pr.labels]
     assignees = [a.login for a in pr.assignees]
@@ -186,11 +189,18 @@ def evaluate_criteria(repo, number, data):
 
     set_ci_age_data(repo, data)
 
+    # Everything but a hotfix is filtered out unless it is approved and
+    # green, but a hotfix is listed whatever its state, so keep the raw
+    # review and CI verdicts around for the gate icons to report.
+    rollup = pr_raw.get("statusCheckRollup")
+
     data.assignee = assignee_approved
     data.approvers = approvers
     data.time = time_left <= 0
     data.time_left = time_left
     data.rebaseable = rebaseable
+    data.approved = pr_raw.get("reviewDecision") == "APPROVED"
+    data.ci_state = rollup["state"] if rollup else None
     data.hotfix = hotfix
     data.trivial = trivial
     data.override_required = override_required
@@ -198,15 +208,35 @@ def evaluate_criteria(repo, number, data):
 
     data.debug = [number, author, assignees, approvers, delta_hours,
                   delta_biz_hours, time_left, rebaseable, hotfix, trivial,
-                  override_required, data.ci_run_recent, dismissed]
+                  override_required, data.ci_run_recent, dismissed,
+                  data.approved, data.ci_state]
+
+
+def ci_gate(data):
+    """Turn the CI rollup into a merge gate.
+
+    The override required label means a release engineer is expected to
+    merge past a failing or stuck required check, so it satisfies the
+    gate the same way a green run does.
+    """
+    if data.override_required or data.ci_state == "SUCCESS":
+        return "pass"
+    if data.ci_state in ("FAILURE", "ERROR"):
+        return "fail"
+    if data.ci_state in ("PENDING", "EXPECTED"):
+        return "wait"
+    return "unknown"
 
 
 def merge_status(data):
-    if data.rebaseable is False or not data.assignee:
+    ci = ci_gate(data)
+
+    if (data.rebaseable is False or not data.assignee or not data.approved or
+        ci == "fail"):
         return "blocked"
-    if not data.time:
+    if not data.time or ci == "wait":
         return "waiting"
-    if data.rebaseable is None:
+    if data.rebaseable is None or ci == "unknown":
         return "unknown"
     return "ready"
 
@@ -215,6 +245,10 @@ GATE_ICONS = {
     ("conflict", "pass"): "git-merge",
     ("conflict", "fail"): "git-merge-conflict",
     ("conflict", "unknown"): "circle-question-mark",
+    ("ci", "pass"): "circle-check",
+    ("ci", "fail"): "circle-x",
+    ("ci", "wait"): "refresh-cw",
+    ("ci", "unknown"): "circle-question-mark",
     ("approval", "pass"): "user-round-check",
     ("approval", "fail"): "user-round-x",
     ("review", "pass"): "clock-check",
@@ -268,7 +302,30 @@ def table_entry(number, data):
             "conflict", "fail", "Has merge conflicts: needs a rebase")
         conflict_search = "merge conflict rebase needed"
 
-    if data.assignee:
+    ci = ci_gate(data)
+    if ci == "pass" and data.override_required:
+        ci_status = gate_icon(
+            "ci", "pass",
+            "A release engineer will override the required checks")
+        ci_search = "ci override required"
+    elif ci == "pass":
+        ci_status = gate_icon("ci", "pass", "CI is passing")
+        ci_search = "ci passing green"
+    elif ci == "fail":
+        ci_status = gate_icon("ci", "fail", "CI is failing")
+        ci_search = "ci failing red"
+    elif ci == "wait":
+        ci_status = gate_icon("ci", "wait", "CI is still running")
+        ci_search = "ci running pending"
+    else:
+        ci_status = gate_icon("ci", "unknown", "CI has not reported yet")
+        ci_search = "ci unknown no checks"
+
+    if not data.approved:
+        approval = gate_icon(
+            "approval", "fail", "Not approved by reviewers yet")
+        approval_search = "approval missing not approved"
+    elif data.assignee:
         approval = gate_icon(
             "approval", "pass",
             "Approved by an assignee, or no assignee approval required")
@@ -290,10 +347,11 @@ def table_entry(number, data):
         review_search = f"review time waiting {remaining}"
 
     gate_search = html.escape(
-        f"{status} {conflict_search} {approval_search} {review_search}",
+        f"{status} {conflict_search} {ci_search} {approval_search} "
+        f"{review_search}",
         quote=True)
     readiness = (f'<td class="gate" data-search="{gate_search}">'
-                 f'<span class="gate-icons">{conflict}{approval}'
+                 f'<span class="gate-icons">{conflict}{ci_status}{approval}'
                  f'{review_time}</span></td>')
 
     tags = []
@@ -356,11 +414,14 @@ def json_entry(number, data):
         "gates": {
             "conflict": ("unknown" if data.rebaseable is None
                          else "pass" if data.rebaseable else "fail"),
-            "approval": "pass" if data.assignee else "fail",
+            "ci": ci_gate(data),
+            "approval": "pass" if data.approved and data.assignee else "fail",
             "review_time": "pass" if data.time else "wait",
         },
         "rebaseable": data.rebaseable,
         "mergeable_state": pr.mergeable_state,
+        "approved": data.approved,
+        "ci_state": data.ci_state,
         "assignee_approved": data.assignee,
         "review_window_elapsed": data.time,
         "time_left_hours": data.time_left,
@@ -630,7 +691,8 @@ def main(argv):
 
     debug_headers = ["number", "author", "assignees", "approvers",
                      "delta_hours", "delta_biz_hours", "time_left", "Mergeable",
-                     "Hotfix", "Trivial", "Override Required", "Dismissed"]
+                     "Hotfix", "Trivial", "Override Required", "Recent CI",
+                     "Dismissed", "Approved", "CI State"]
     debug_data = []
     for _, data in pr_data.items():
         debug_data.append(data.debug)

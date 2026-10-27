@@ -59,6 +59,7 @@ class PRData:
     ci_age_days: int = field(default=None)
     ci_run_recent: bool = field(default=False)
     dismissed: bool = field(default=False)
+    frozen: bool = field(default=False)
     debug: list = field(default=None)
 
 
@@ -368,10 +369,16 @@ def table_entry(number, data):
         tags.append('<span class="tag tag-dismissed">review dismissed</span>')
     if data.dnm:
         tags.append('<span class="tag tag-dnm">dnm</span>')
+    if data.frozen:
+        tags.append('<span class="tag tag-frozen">held by freeze</span>')
     tags_text = ' '.join(tags)
 
+    # Rows held by the feature freeze are hidden client side by default,
+    # but stay in the table so the normal list can be shown on request.
+    frozen_attr = ' data-frozen="true"' if data.frozen else ""
+
     return f"""
-        <tr data-status="{status}" data-base="{base_attr}">
+        <tr data-status="{status}" data-base="{base_attr}"{frozen_attr}>
             <td class="num"><a href="{url}">{number}</a></td>
             <td class="title"><a href="{url}">{title}</a> {tags_text}</td>
             <td class="author">{author}</td>
@@ -432,6 +439,7 @@ def json_entry(number, data):
         "dismissed": data.dismissed,
         "ci_run_recent": data.ci_run_recent,
         "ci_age_days": data.ci_age_days,
+        "frozen": data.frozen,
     }
 
 
@@ -684,10 +692,11 @@ def main(argv):
         number = pr_raw["number"]
         milestone = pr_raw["milestone"]
 
-        if (freeze_mode and milestone and milestone["title"] > latest_tag and
-            not is_hotfix(pr_raw)):
-            print(f"ignoring: {number} milestone={milestone['title']} > {latest_tag}")
-            continue
+        frozen = bool(freeze_mode and milestone and
+                      milestone["title"] > latest_tag and
+                      not is_hotfix(pr_raw))
+        if frozen:
+            print(f"frozen: {number} milestone={milestone['title']} > {latest_tag}")
 
         print(f"fetch: {number}")
         pr = repo.get_pull(number)
@@ -697,7 +706,7 @@ def main(argv):
             print(f"ignoring: {number} ref={pr.base.ref}")
             continue
 
-        pr_data[number] = PRData(pr_raw=pr_raw, pr=pr)
+        pr_data[number] = PRData(pr_raw=pr_raw, pr=pr, frozen=frozen)
 
     for number, data in pr_data.items():
         evaluate_criteria(repo, number, data)

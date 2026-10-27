@@ -212,6 +212,19 @@ a:hover { text-decoration: underline; }
 .chip.active { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 .chip .count { font-weight: 400; opacity: 0.8; }
 
+.freeze-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding-left: 12px;
+	border-left: 1px solid var(--border);
+	color: var(--muted);
+	font-size: 13px;
+	cursor: pointer;
+}
+.freeze-toggle[hidden] { display: none; }
+.freeze-toggle input { margin: 0; accent-color: var(--accent); cursor: pointer; }
+
 /* ---- Table ------------------------------------------------------------- */
 
 .table-wrap {
@@ -329,6 +342,7 @@ table.dataTable.prs > tbody > tr > td.dt-empty { padding: 16px; color: var(--mut
 .tag-oldci { background: #fef2c0; color: #574b00; }
 .tag-dismissed { background: #ff69b4; color: #3d0d24; }
 .tag-dnm { background: #b60205; color: white; }
+.tag-frozen { background: #c5def5; color: #032f62; }
 
 /* ---- Footer / misc ----------------------------------------------------- */
 
@@ -586,6 +600,17 @@ function setupDataTable() {
 	const rowText = new Map(
 		rows.map((row) => [row, row.textContent.toLowerCase()]));
 
+	/* During feature freeze, PRs milestoned past the next release are in the
+	 * table but hidden unless the box is unchecked to get the normal list.
+	 * Not saved with the table state: every visit starts in the freeze view. */
+	const freezeToggle = document.getElementById("freeze-toggle");
+	const freezeFilter = document.getElementById("freeze-filter");
+	const frozenCount = rows.filter((row) => row.dataset.frozen).length;
+	freezeToggle.hidden = frozenCount == 0;
+	freezeToggle.querySelector(".count").textContent = frozenCount;
+	let hideFrozen = true;
+	const freezeShows = (row) => !hideFrozen || !row.dataset.frozen;
+
 	const counts = {};
 	rows.forEach((row) => {
 		counts[row.dataset.status] = (counts[row.dataset.status] || 0) + 1;
@@ -606,8 +631,8 @@ function setupDataTable() {
 	function updateChipCounts(table) {
 		const text = table.search().trim().toLowerCase();
 		const selectedTarget = table.column(5).search();
-		const candidates = rows.filter((row) =>
-			!text || rowText.get(row).includes(text));
+		const candidates = rows.filter((row) => freezeShows(row) &&
+			(!text || rowText.get(row).includes(text)));
 
 		statusChips.forEach((chip) => {
 			const value = chip.dataset.status;
@@ -703,6 +728,14 @@ function setupDataTable() {
 			status = activateChip(statusChips, "status", chip.dataset.status);
 			prTable.draw();
 		});
+	});
+
+	prTable.search.fixed("freeze", (_search, _data, index) =>
+		freezeShows(rows[index]));
+
+	freezeFilter.addEventListener("change", () => {
+		hideFrozen = freezeFilter.checked;
+		prTable.draw();
 	});
 
 	let target = activateChip(
@@ -857,13 +890,17 @@ addEventListener("DOMContentLoaded", () => {
 			<td>A &ldquo;changes requested&rdquo; review was dismissed by someone else; merits a second look.</td></tr>
 		<tr><td><span class="tag tag-dnm">dnm</span></td>
 			<td>Do not merge.</td></tr>
+		<tr><td><span class="tag tag-frozen">held by freeze</span></td>
+			<td>Milestoned after the release in progress; waits for the feature freeze to end.</td></tr>
 	</table>
 
 	<h4>Release phase</h4>
 	<p>During <b>integration</b>, features and fixes merge normally. During
 	<a href="https://docs.zephyrproject.org/latest/project/release_process.html#feature-freeze-stabilization-phase">feature
 	freeze</a>, only bug fixes and release-blocking work are merged, and PRs
-	milestoned for the next release wait.</p>
+	milestoned for a later release wait. They are hidden by default; uncheck
+	<b>Hide PRs held by the feature freeze</b> to list them anyway, marked
+	<span class="tag tag-frozen">held by freeze</span>.</p>
 	</div>
 </dialog>
 
@@ -891,6 +928,12 @@ addEventListener("DOMContentLoaded", () => {
 		aria-label="Filter by target branch" hidden>
 		<span class="chips-label">Target branch:</span>
 	</div>
+	<!-- Shown by setupDataTable() when the feature freeze holds back PRs. -->
+	<label class="freeze-toggle" id="freeze-toggle" hidden
+		title="Uncheck to show the normal list, including PRs milestoned after the release in progress">
+		<input type="checkbox" id="freeze-filter" checked autocomplete="off">
+		Hide PRs held by the feature freeze <span class="count"></span>
+	</label>
 </div>
 
 <div class="table-wrap">

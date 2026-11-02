@@ -529,7 +529,9 @@ function setupAutoRefresh() {
 function openReadyPRs() {
 	const rows = prTable.rows(
 		(_index, _data, node) =>
-			node.dataset.status == "ready" && node.dataset.base == "main",
+			node.dataset.status == "ready" &&
+			node.dataset.base == "main" &&
+			!node.querySelector(".tag-dismissed"),
 		{search: "applied"},
 	).nodes().toArray();
 

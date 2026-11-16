@@ -13,9 +13,15 @@ import os
 import re
 import sys
 import tabulate
+import time
 import gzip
 
 PER_PAGE = 100
+
+# GitHub occasionally answers a heavy GraphQL page with an empty body or a
+# 502, so retry the page a few times before giving up on the whole run.
+GRAPHQL_RETRIES = 5
+GRAPHQL_RETRY_DELAY_S = 10
 
 HTML_OUT = "public/index.html"
 HTML_PRE = "index.html.pre"
@@ -591,6 +597,21 @@ query($owner: String!, $name: String!, $cursor: String) {
 }
 """
 
+def graphql_pull_requests(gh, variables):
+    for attempt in range(1, GRAPHQL_RETRIES + 1):
+        try:
+            _, resp = gh.requester.graphql_query(QUERY, variables)
+            return resp["data"]["repository"]["pullRequests"]
+        # PyGithub raises TypeError when GitHub returns an empty body.
+        except (github.GithubException, TypeError, KeyError) as e:
+            if attempt == GRAPHQL_RETRIES:
+                raise
+            delay = GRAPHQL_RETRY_DELAY_S * attempt
+            print(f"query failed ({e!r}), retry {attempt}/{GRAPHQL_RETRIES - 1} "
+                  f"in {delay}s")
+            time.sleep(delay)
+
+
 def get_prs(gh, org, repo):
     variables = {
             "owner": org,
@@ -602,9 +623,7 @@ def get_prs(gh, org, repo):
     has_next_page = True
 
     while has_next_page:
-        _, resp = gh.requester.graphql_query(QUERY, variables)
-
-        prs = resp["data"]["repository"]["pullRequests"]
+        prs = graphql_pull_requests(gh, variables)
 
         all_prs.extend(prs["nodes"])
         has_next_page = prs["pageInfo"]["hasNextPage"]
